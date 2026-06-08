@@ -1,0 +1,3 @@
+-- Seed data for local/staging.
+-- The singleton owner profile is seeded by the master migration itself.
+-- Nothing else to seed for single-user mode (jobs arrive via the Opportunities paste flow).
