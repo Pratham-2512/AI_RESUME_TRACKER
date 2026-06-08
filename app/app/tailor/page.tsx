@@ -4,9 +4,9 @@ import { TailorStudio } from "@/components/tailor/tailor-studio";
 export const dynamic = "force-dynamic";
 
 export default async function TailorPage() {
-  const db = createDb();
   let resumes: { id: string; label: string | null }[] = [];
   try {
+    const db = createDb();
     const { data } = await db.from("resumes").select("id,label").order("created_at", { ascending: false });
     resumes = data ?? [];
   } catch { /* DB optional — paste path still works */ }

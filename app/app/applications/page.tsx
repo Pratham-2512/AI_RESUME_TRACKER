@@ -5,10 +5,10 @@ import type { AppStatus } from "@/lib/supabase/database.types";
 export const dynamic = "force-dynamic";
 
 export default async function PipelinePage() {
-  const db = createDb();
   let apps: { id: string; job_title: string | null; company: string | null; status: AppStatus }[] = [];
   let dbError: string | null = null;
   try {
+    const db = createDb();
     const { data } = await db.from("applications").select("id,job_title,company,status").order("updated_at", { ascending: false });
     apps = (data ?? []) as typeof apps;
   } catch (e) { dbError = e instanceof Error ? e.message : "Database not reachable"; }

@@ -5,10 +5,10 @@ import { ResumeCreate } from "@/components/resumes/resume-create";
 export const dynamic = "force-dynamic";
 
 export default async function ResumesPage() {
-  const db = createDb();
   let resumes: { id: string; label: string | null; target: string | null; status: string | null; is_primary: boolean | null }[] = [];
   let dbError: string | null = null;
   try {
+    const db = createDb();
     const { data } = await db
       .from("resumes")
       .select("id,label,target,status,is_primary,created_at")

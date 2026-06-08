@@ -16,13 +16,13 @@ const EMPTY: ProfileShape = {
 };
 
 export default async function ProfilePage() {
-  const db = createDb();
   let profile: ProfileShape = EMPTY;
   let skills: { id: string; name: string; category: string | null; proficiency: number | null; years: number | null }[] = [];
   let experience: { id: string; company: string; title: string; start_date: string | null; end_date: string | null; is_current: boolean | null; description: string | null }[] = [];
   let dbError: string | null = null;
 
   try {
+    const db = createDb();
     const [p, s, x] = await Promise.all([
       db.from("profiles").select("full_name,phone,location,headline,summary,career_goals,target_roles,years_experience").eq("id", OWNER_ID).maybeSingle(),
       db.from("skills").select("id,name,category,proficiency,years").order("created_at"),
