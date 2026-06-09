@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createDb } from "@/lib/supabase/db";
 import { ResumeWorkspace } from "@/components/resumes/resume-workspace";
 import { ResumeInspector } from "@/components/resumes/resume-inspector";
+import { DownloadOriginal } from "@/components/resumes/download-original";
 
 export const dynamic = "force-dynamic";
 
@@ -12,13 +13,13 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
   // Fetch inside try/catch so a missing-env / unreachable-DB error degrades
   // gracefully instead of producing an HTTP 500. notFound() is kept OUTSIDE the
   // try because it works by throwing and must be allowed to propagate.
-  let resume: { id: string; label: string | null; target: string | null; parsed_text: string | null } | null = null;
+  let resume: { id: string; label: string | null; target: string | null; parsed_text: string | null; storage_path: string | null } | null = null;
   let analysis: unknown = null;
   let versions: unknown[] = [];
   let dbError: string | null = null;
   try {
     const db = createDb();
-    const r = await db.from("resumes").select("id,label,target,parsed_text").eq("id", id).single();
+    const r = await db.from("resumes").select("id,label,target,parsed_text,storage_path").eq("id", id).single();
     resume = r.data;
     if (resume) {
       const [a, v] = await Promise.all([
@@ -50,23 +51,28 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <Link href="/app/resumes" className="text-sm text-muted-foreground hover:underline">← Résumés</Link>
-        <Link href={`/print/resume/${id}`} target="_blank" className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted">
-          Export PDF
-        </Link>
+        <div className="flex items-center gap-2">
+          {resume.storage_path && <DownloadOriginal resumeId={id} />}
+          <Link href={`/print/resume/${id}`} target="_blank" className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+            Export PDF
+          </Link>
+        </div>
       </div>
       <h1 className="mt-2 text-2xl font-bold">{resume.label ?? "Résumé"}</h1>
       <p className="mt-1 text-muted-foreground">Target: {resume.target}</p>
 
       <div className="mt-6 space-y-6">
+        {/* Re-run ATS Analysis */}
         <ResumeInspector resumeId={id} />
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <ResumeWorkspace resumeId={id} initialAnalysis={(analysis as any) ?? null} initialVersions={(versions as any) ?? []} />
       </div>
 
+      {/* View Extracted Text */}
       <details className="mt-8 rounded-lg border bg-card p-4">
-        <summary className="cursor-pointer text-sm font-medium">View parsed text</summary>
+        <summary className="cursor-pointer text-sm font-medium">View extracted text</summary>
         <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{resume.parsed_text}</pre>
       </details>
     </div>
