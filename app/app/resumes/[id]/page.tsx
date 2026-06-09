@@ -8,19 +8,45 @@ export const dynamic = "force-dynamic";
 
 export default async function ResumeDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const db = createDb();
 
-  const { data: resume } = await db.from("resumes").select("id,label,target,parsed_text").eq("id", id).single();
+  // Fetch inside try/catch so a missing-env / unreachable-DB error degrades
+  // gracefully instead of producing an HTTP 500. notFound() is kept OUTSIDE the
+  // try because it works by throwing and must be allowed to propagate.
+  let resume: { id: string; label: string | null; target: string | null; parsed_text: string | null } | null = null;
+  let analysis: unknown = null;
+  let versions: unknown[] = [];
+  let dbError: string | null = null;
+  try {
+    const db = createDb();
+    const r = await db.from("resumes").select("id,label,target,parsed_text").eq("id", id).single();
+    resume = r.data;
+    if (resume) {
+      const [a, v] = await Promise.all([
+        db.from("resume_analyses")
+          .select("before_score,ats_breakdown,missing_keywords,missing_skills,weak_sections,suggestions")
+          .eq("resume_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        db.from("resume_versions")
+          .select("id,version_no,ats_score,content_md")
+          .eq("resume_id", id).order("version_no", { ascending: false }),
+      ]);
+      analysis = a.data;
+      versions = v.data ?? [];
+    }
+  } catch (e) {
+    dbError = e instanceof Error ? e.message : "Database not reachable";
+  }
+
+  if (dbError) {
+    return (
+      <div>
+        <Link href="/app/resumes" className="text-sm text-muted-foreground hover:underline">← Résumés</Link>
+        <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          Database not ready: {dbError}. Apply the schema (see SUPABASE_SETUP.md).
+        </div>
+      </div>
+    );
+  }
   if (!resume) notFound();
-
-  const [{ data: analysis }, { data: versions }] = await Promise.all([
-    db.from("resume_analyses")
-      .select("before_score,ats_breakdown,missing_keywords,missing_skills,weak_sections,suggestions")
-      .eq("resume_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    db.from("resume_versions")
-      .select("id,version_no,ats_score,content_md")
-      .eq("resume_id", id).order("version_no", { ascending: false }),
-  ]);
 
   return (
     <div>
