@@ -32,6 +32,16 @@ function coachReply(message: string, ctx: Awaited<ReturnType<typeof getCoachDash
   if (has("resume", "cv", "ats")) {
     return `Résumé readiness is ${ctx.readiness.resume}/100. ${ctx.readiness.resume < 75 ? "Add quantified bullets (numbers, %, outcomes) and mirror target-role keywords — use the Tailoring Studio." : "It's in good shape — keep tailoring per job."}`;
   }
+  if (has("not getting interview", "no interview", "why am i not", "not hearing back", "no response", "no callback", "rejected", "ghosted", "no callbacks", "not getting any")) {
+    const reasons: string[] = [];
+    if (ctx.readiness.resume < 75) reasons.push(`your résumé/ATS is ${ctx.readiness.resume}/100 — tighten keywords and add quantified impact`);
+    if (ctx.gap.coverage < 70) reasons.push(`skill coverage is ${ctx.gap.coverage}% for ${ctx.targetRoleLabel}${top.length ? ` (missing ${top.join(", ")})` : ""}`);
+    if (ctx.readiness.applications < 60) reasons.push(`application volume is low (${ctx.readiness.applications}/100) — apply to more high-match roles`);
+    const lead = reasons.length
+      ? `A few likely causes: ${reasons.join("; ")}.`
+      : "Your résumé, skills, and volume all look solid — this is likely a targeting issue, so focus on higher-match roles.";
+    return `${lead} Fix the biggest lever first: ${reasons[0] ?? "tailor each résumé to the job and prioritize high-match openings"}.`;
+  }
   if (has("interview", "practice", "mock")) {
     return `Interview readiness is ${ctx.readiness.interview}/100. Generate an interview kit for a target role and practice answers — the evaluator scores communication, technical depth, confidence, and completeness, and checks STAR structure for behavioral questions.`;
   }
