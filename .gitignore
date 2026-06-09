@@ -10,3 +10,8 @@ build/
 next-env.d.ts
 .vercel
 worker/node_modules/
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+tmp/

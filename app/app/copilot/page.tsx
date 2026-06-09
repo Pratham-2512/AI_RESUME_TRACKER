@@ -1,15 +1,25 @@
 import Link from "next/link";
 import { getCareerHealth, type ActionItem, type HealthDimension } from "@/lib/domain/careerHealth";
 import { buildWeeklyReport, buildResumeAdvice, buildPhasedPlan } from "@/lib/domain/copilotAdvisors";
+import { getCopilotMemory } from "@/lib/domain/copilotMemory";
+import { getWeeklyReportHistory } from "@/lib/domain/weeklyReport";
 import { CoachChat } from "@/components/coach/coach-chat";
+import { MemoryPanel } from "@/components/copilot/memory-panel";
+import { SaveWeeklyReport } from "@/components/copilot/weekly-report-actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function CopilotPage() {
   let health: Awaited<ReturnType<typeof getCareerHealth>> | null = null;
+  let memory: Awaited<ReturnType<typeof getCopilotMemory>> | null = null;
+  let reportHistory: Awaited<ReturnType<typeof getWeeklyReportHistory>> = [];
   let dbError: string | null = null;
   try {
-    health = await getCareerHealth();
+    [health, memory, reportHistory] = await Promise.all([
+      getCareerHealth(),
+      getCopilotMemory(),
+      getWeeklyReportHistory(8),
+    ]);
   } catch (e) {
     dbError = e instanceof Error ? e.message : "Database not reachable";
   }
@@ -172,19 +182,45 @@ export default async function CopilotPage() {
         </Card>
       </div>
 
+      {/* Copilot Memory */}
+      {memory && (
+        <Card title="Copilot Memory" subtitle="Persisted career goal, learning progress, and coaching context the chat recalls">
+          <MemoryPanel memory={memory} />
+        </Card>
+      )}
+
       {/* Smart Chat Copilot (rule-based, persisted to coaching_sessions/messages) */}
-      <Card title="Smart Chat Copilot" subtitle="Rule-based — grounded in your data, no LLM required">
+      <Card title="Smart Chat Copilot" subtitle="Rule-based — grounded in your data + memory, no LLM required">
         <CoachChat />
       </Card>
 
       {/* Weekly Report */}
       <Card title="Weekly Report" subtitle="Auto-generated from this week’s activity">
+        <div className="mb-3"><SaveWeeklyReport /></div>
         <div className="grid gap-4 sm:grid-cols-2">
           <ReportColumn title="Wins" items={report.wins} tone="good" />
           <ReportColumn title="Watch-outs" items={report.losses} tone="bad" />
           <ReportColumn title="Progress" items={report.progress} tone="plan" />
           <ReportColumn title="Recommendations" items={report.recommendations} tone="plan" />
         </div>
+
+        {reportHistory.length > 0 && (
+          <div className="mt-5 border-t pt-4">
+            <p className="mb-2 text-sm font-semibold">Report timeline</p>
+            <ol className="relative space-y-3 border-l pl-4">
+              {reportHistory.map((r) => (
+                <li key={r.id} className="relative">
+                  <span className="absolute -left-[1.30rem] top-1.5 h-2 w-2 rounded-full bg-primary" />
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">{new Date(r.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">Health {r.overall}</span>
+                  </div>
+                  {r.report.recommendations[0] && <p className="text-xs text-muted-foreground">{r.report.recommendations[0]}</p>}
+                </li>
+              ))}
+            </ol>
+          </div>
+        )}
       </Card>
     </div>
   );

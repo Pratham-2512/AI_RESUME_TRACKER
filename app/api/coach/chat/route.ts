@@ -2,24 +2,38 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createDb } from "@/lib/supabase/db";
 import { getCoachDashboard } from "@/lib/domain/coachData";
+import { getCopilotMemory, persistCoachingContext, type CopilotMemory } from "@/lib/domain/copilotMemory";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 const bodySchema = z.object({
   message: z.string().trim().min(1).max(4000),
-  sessionId: z.string().uuid().optional(),
+  // The chat client sends `null` on the first turn — accept null and undefined.
+  sessionId: z.string().uuid().nullish(),
 });
 
 /**
  * Deterministic, grounded career-coach reply. No LLM — routes the question to the
- * user's real data (skill gap, roadmap, readiness, recommendations). If an
+ * user's real data (skill gap, roadmap, readiness, recommendations) AND persisted
+ * Copilot Memory (career goal, learning progress, recent topics). If an
  * ANTHROPIC_API_KEY is later added, this can be upgraded to a generative answer.
  */
-function coachReply(message: string, ctx: Awaited<ReturnType<typeof getCoachDashboard>>): string {
+function coachReply(message: string, ctx: Awaited<ReturnType<typeof getCoachDashboard>>, memory: CopilotMemory): string {
   const m = message.toLowerCase();
   const top = ctx.gap.missing.slice(0, 3).map((g) => g.skill);
   const has = (...keys: string[]) => keys.some((k) => m.includes(k));
+
+  // Memory recall — the copilot remembers goals, target role, and learning progress.
+  if (has("remember", "my goal", "what did we", "last time", "my progress", "what do you know", "recall", "memory")) {
+    const parts: string[] = [];
+    if (memory.careerGoal) parts.push(`Your goal: “${memory.careerGoal}”`);
+    parts.push(`Target role: ${memory.targetRoleLabel}`);
+    if (memory.learning.length) parts.push(`Learning: ${memory.learning.slice(0, 4).map((l) => `${l.skill} (${l.status.replace("_", " ")})`).join(", ")}`);
+    if (memory.recentTopics.length) parts.push(`Recent topics: ${memory.recentTopics.slice(0, 3).join("; ")}`);
+    return `Here's what I remember — ${parts.join(". ")}.`;
+  }
+  const goalPrefix = memory.careerGoal ? `Toward your goal (“${memory.careerGoal.slice(0, 80)}”): ` : "";
 
   if (has("skill", "gap", "learn what", "what should i learn", "missing")) {
     if (!top.length) return `For ${ctx.targetRoleLabel}, you already cover the core role skills (${ctx.gap.coverage}% coverage). Focus on depth and a portfolio project rather than new skills.`;
@@ -58,9 +72,9 @@ function coachReply(message: string, ctx: Awaited<ReturnType<typeof getCoachDash
     const r = ctx.readiness;
     return `Overall career readiness: ${r.overall}/100 → Résumé ${r.resume}, Interview ${r.interview}, Skills ${r.skills}, Projects ${r.projects}, Applications ${r.applications}. Weakest area: ${r.weakest?.key ?? "—"}. Tackle that first.`;
   }
-  // Default — surface the top recommendation.
+  // Default — surface the top recommendation, anchored to the remembered goal.
   const rec = ctx.recommendations[0];
-  return `${rec ? rec.text : "Tell me about your skills, target role, résumé, or interview prep and I'll give you a concrete next step."} (Ask me about your skill gap, roadmap, résumé, interviews, or readiness.)`;
+  return `${goalPrefix}${rec ? rec.text : "Tell me about your skills, target role, résumé, or interview prep and I'll give you a concrete next step."} (Ask me about your skill gap, roadmap, résumé, interviews, or readiness.)`;
 }
 
 export async function POST(req: Request) {
@@ -69,10 +83,12 @@ export async function POST(req: Request) {
   catch { return NextResponse.json({ data: null, error: { code: "VALIDATION", message: "Provide a message." } }, { status: 400 }); }
 
   let ctx: Awaited<ReturnType<typeof getCoachDashboard>>;
-  try { ctx = await getCoachDashboard(); }
-  catch { return NextResponse.json({ data: null, error: { code: "DB", message: "Coach data unavailable." } }, { status: 500 }); }
+  let memory: CopilotMemory;
+  try {
+    [ctx, memory] = await Promise.all([getCoachDashboard(), getCopilotMemory()]);
+  } catch { return NextResponse.json({ data: null, error: { code: "DB", message: "Coach data unavailable." } }, { status: 500 }); }
 
-  const reply = coachReply(body.message, ctx);
+  const reply = coachReply(body.message, ctx, memory);
 
   // Persist the turn into coaching_sessions / coaching_messages.
   let sessionId = body.sessionId ?? null;
@@ -89,6 +105,8 @@ export async function POST(req: Request) {
       ]);
       await db.from("coaching_sessions").update({ updated_at: new Date().toISOString() }).eq("id", sessionId);
     }
+    // Roll the latest exchange into Copilot Memory so future replies can recall it.
+    await persistCoachingContext({ note: `Q: ${body.message.slice(0, 200)} → ${reply.slice(0, 200)}`, topics: [body.message.slice(0, 60)] });
   } catch (e) { console.error("[coach chat persist]", e); }
 
   return NextResponse.json({ data: { reply, sessionId }, error: null });
