@@ -63,10 +63,36 @@ export async function getResumeDownloadUrl(id: string): Promise<string | null> {
   return data.signedUrl;
 }
 
+/** How many applications reference a version of this resume (for deletion warning). */
+export async function getResumeApplicationCount(id: string): Promise<number> {
+  const db = createDb();
+  const { data: versions } = await db
+    .from("resume_versions")
+    .select("id")
+    .eq("resume_id", id);
+  if (!versions?.length) return 0;
+  const versionIds = versions.map((v) => v.id);
+  const { count } = await db
+    .from("applications")
+    .select("id", { count: "exact", head: true })
+    .in("resume_version_id", versionIds);
+  return count ?? 0;
+}
+
 export async function deleteResume(id: string) {
   const db = createDb();
+  // Fetch storage_path before the row disappears
+  const { data: resume } = await db.from("resumes").select("storage_path").eq("id", id).single();
+  // Delete DB row — resume_versions and resume_analyses cascade automatically
   const { error } = await db.from("resumes").delete().eq("id", id);
   if (error) throw new Error(error.message);
+  // Remove stored file (non-fatal: DB row is already gone)
+  if (resume?.storage_path) {
+    await db.storage
+      .from("resumes")
+      .remove([resume.storage_path])
+      .catch((e: unknown) => console.error("[resume delete] storage cleanup:", e));
+  }
   revalidatePath("/app/resumes");
 }
 

@@ -137,6 +137,9 @@
   .btn-success {
     @apply btn btn-md bg-success text-success-foreground shadow-sm hover:bg-success/90;
   }
+  .btn-destructive {
+    @apply btn btn-md bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90;
+  }
 
   /* Shimmering skeleton for loading states */
   .skeleton {

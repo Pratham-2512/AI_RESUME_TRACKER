@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   // Pin tracing root to this project (silences multi-lockfile root inference warning).
   outputFileTracingRoot: path.join(__dirname),
   // Keep native/worker-bearing parsers out of the bundle; load them at runtime.
-  serverExternalPackages: ["pdf-parse", "mammoth", "word-extractor"],
+  serverExternalPackages: ["pdf-parse", "mammoth", "word-extractor", "@napi-rs/canvas", "pdfjs-dist"],
   images: {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },

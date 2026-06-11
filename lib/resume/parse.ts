@@ -89,7 +89,14 @@ export async function parseResume(buf: Buffer, ext: AllowedExt): Promise<ParseRe
       const doc = await extractor.extract(buf);
       text = doc.getBody() ?? "";
     } else {
-      // pdf-parse v2: class API
+      // pdfjs-dist v5 (used by pdf-parse v2) executes `new DOMMatrix()` at
+      // module-load time. Next.js resolves `pdf-parse` to its ESM entry which
+      // has no @napi-rs/canvas polyfill (unlike the CJS bundle). Register it
+      // on globalThis before the dynamic import so pdfjs-dist can initialise.
+      if (typeof (globalThis as Record<string, unknown>).DOMMatrix === "undefined") {
+        const { DOMMatrix: NodeDOMMatrix } = await import("@napi-rs/canvas");
+        (globalThis as Record<string, unknown>).DOMMatrix = NodeDOMMatrix;
+      }
       const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: new Uint8Array(buf) });
       try {

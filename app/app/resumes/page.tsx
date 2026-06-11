@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createDb } from "@/lib/supabase/db";
 import { ResumeCreate } from "@/components/resumes/resume-create";
+import { DeleteResumeButton } from "@/components/resumes/delete-resume-button";
 import { PageHeader, ErrorBanner, Badge, Empty } from "@/components/shared/ui";
 
 export const dynamic = "force-dynamic";
@@ -31,13 +32,19 @@ export default async function ResumesPage() {
 
       <div className="space-y-3">
         {resumes.map((r) => (
-          <Link key={r.id} href={`/app/resumes/${r.id}`} className="card card-hover group flex items-center justify-between p-5">
-            <div>
-              <p className="font-semibold">{r.label ?? "Résumé"} {r.is_primary && <Badge tone="primary" className="ml-2">primary</Badge>}</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">Target: {r.target} · {r.status}</p>
-            </div>
-            <span className="text-sm font-medium text-primary transition-transform duration-150 group-hover:translate-x-0.5">Open →</span>
-          </Link>
+          <div key={r.id} className="card card-hover group flex items-center gap-2 p-5">
+            <Link href={`/app/resumes/${r.id}`} className="flex flex-1 items-center justify-between gap-4 min-w-0">
+              <div className="min-w-0">
+                <p className="font-semibold truncate">
+                  {r.label ?? "Résumé"}
+                  {r.is_primary && <Badge tone="primary" className="ml-2">primary</Badge>}
+                </p>
+                <p className="mt-0.5 text-sm text-muted-foreground">Target: {r.target} · {r.status}</p>
+              </div>
+              <span className="flex-shrink-0 text-sm font-medium text-primary transition-transform duration-150 group-hover:translate-x-0.5">Open →</span>
+            </Link>
+            <DeleteResumeButton id={r.id} label={r.label ?? "Résumé"} />
+          </div>
         ))}
         {resumes.length === 0 && !dbError && (
           <Empty>No résumés yet. Add one to get your ATS score.</Empty>
