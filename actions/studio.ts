@@ -5,6 +5,10 @@ import { z } from "zod";
 import { createDb } from "@/lib/supabase/db";
 import { OWNER_ID } from "@/lib/owner";
 import { generateCoverLetter, type CoverLetterResult } from "@/lib/domain/coverLetter";
+import {
+  analyzeCompatibility, honestTailor, optimizeWithConfirmedSkills, generateLearningRoadmap,
+  type CompatibilityAnalysis, type TailoringResult, type LearningRoadmap, type SkillConfirmation,
+} from "@/lib/domain/tailorEngine";
 
 const coverSchema = z.object({
   resumeId: z.string().uuid(),
@@ -58,6 +62,70 @@ const trackSchema = z.object({
   opportunityId: z.string().uuid().nullish(),
   notes: z.string().trim().max(2000).optional(),
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Trust-first tailoring actions
+// ─────────────────────────────────────────────────────────────────────────────
+
+const compatSchema = z.object({
+  resumeId: z.string().uuid(),
+  jdText: z.string().trim().min(30).max(40000),
+});
+
+async function fetchResumeText(resumeId: string): Promise<string> {
+  const db = createDb();
+  const { data } = await db.from("resumes").select("parsed_text").eq("id", resumeId).single();
+  if (!data?.parsed_text) throw new Error("Résumé not found — save it first.");
+  return data.parsed_text;
+}
+
+export async function runCompatibilityAnalysis(input: unknown): Promise<CompatibilityAnalysis> {
+  const { resumeId, jdText } = compatSchema.parse(input);
+  const resumeText = await fetchResumeText(resumeId);
+  return analyzeCompatibility(resumeText, jdText);
+}
+
+export type TailoringOutput = TailoringResult & { learningRoadmap: LearningRoadmap | null };
+
+export async function runHonestTailor(input: unknown): Promise<TailoringOutput> {
+  const { resumeId, jdText } = compatSchema.parse(input);
+  const resumeText = await fetchResumeText(resumeId);
+  const result = honestTailor(resumeText, jdText);
+  const compat = analyzeCompatibility(resumeText, jdText);
+  try {
+    const db = createDb();
+    const { data: last } = await db.from("resume_versions").select("version_no").eq("resume_id", resumeId).order("version_no", { ascending: false }).limit(1).maybeSingle();
+    await db.from("resume_versions").insert({
+      resume_id: resumeId, version_no: (last?.version_no ?? 0) + 1,
+      target: "ats", content_md: result.contentMd, ats_score: result.afterScore, created_by_ai: false,
+    });
+  } catch { /* non-fatal */ }
+  return { ...result, learningRoadmap: compat.matchScore < 70 ? generateLearningRoadmap(compat.missingSkills) : null };
+}
+
+const optimizeSchema = compatSchema.extend({
+  confirmedSkills: z.array(z.object({
+    skill: z.string(),
+    confirmed: z.boolean(),
+    level: z.enum(["beginner", "intermediate", "advanced"]),
+  })),
+});
+
+export async function runOptimizedTailor(input: unknown): Promise<TailoringOutput> {
+  const { resumeId, jdText, confirmedSkills } = optimizeSchema.parse(input);
+  const resumeText = await fetchResumeText(resumeId);
+  const result = optimizeWithConfirmedSkills(resumeText, jdText, confirmedSkills as SkillConfirmation[]);
+  const compat = analyzeCompatibility(resumeText, jdText);
+  try {
+    const db = createDb();
+    const { data: last } = await db.from("resume_versions").select("version_no").eq("resume_id", resumeId).order("version_no", { ascending: false }).limit(1).maybeSingle();
+    await db.from("resume_versions").insert({
+      resume_id: resumeId, version_no: (last?.version_no ?? 0) + 1,
+      target: "ats", content_md: result.contentMd, ats_score: result.afterScore, created_by_ai: false,
+    });
+  } catch { /* non-fatal */ }
+  return { ...result, learningRoadmap: compat.matchScore < 70 ? generateLearningRoadmap(compat.missingSkills) : null };
+}
 
 /** Apply Assistant: log the application into the pipeline (status=applied). */
 export async function trackApplication(input: unknown): Promise<string> {
