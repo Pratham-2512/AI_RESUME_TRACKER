@@ -59,9 +59,9 @@ export function CoachChat() {
 
       <form onSubmit={(e) => { e.preventDefault(); send(input); }} className="mt-3 flex gap-2">
         <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask your coach…"
-          className="flex-1 rounded-md border bg-background px-3 py-2 text-sm" />
+          className="field flex-1" />
         <button type="submit" disabled={busy || input.trim().length === 0}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">Send</button>
+          className="btn-primary">Send</button>
       </form>
     </SectionCard>
   );

@@ -79,9 +79,9 @@ export function InterviewSuite({
             {usePaste ? (
               <textarea value={jdText} onChange={(e) => setJdText(e.target.value)} rows={5}
                 placeholder="Paste the job description…"
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+                className="field" />
             ) : (
-              <select value={oppId} onChange={(e) => setOppId(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+              <select value={oppId} onChange={(e) => setOppId(e.target.value)} className="field">
                 {opportunities.map((o) => <option key={o.id} value={o.id}>{o.title}{o.company ? ` · ${o.company}` : ""}</option>)}
               </select>
             )}
@@ -89,7 +89,7 @@ export function InterviewSuite({
           <div>
             <label className="mb-1.5 block text-sm font-medium">Your résumé <span className="text-muted-foreground">(optional)</span></label>
             {resumes.length > 0 ? (
-              <select value={resumeId} onChange={(e) => setResumeId(e.target.value)} className="w-full rounded-md border bg-background px-3 py-2 text-sm">
+              <select value={resumeId} onChange={(e) => setResumeId(e.target.value)} className="field">
                 <option value="">Use profile skills</option>
                 {resumes.map((r) => <option key={r.id} value={r.id}>{r.label ?? "Résumé"}</option>)}
               </select>
@@ -100,7 +100,7 @@ export function InterviewSuite({
         </div>
         <div className="mt-4 flex items-center gap-3">
           <button onClick={generate} disabled={busy || (usePaste ? jdText.trim().length < 20 : !oppId && opportunities.length > 0 && !usePaste)}
-            className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+            className="btn-primary">
             {busy ? "Generating…" : "Generate kit"}
           </button>
           {err && <p className="text-sm text-destructive">{err}</p>}
@@ -184,10 +184,10 @@ function QuestionCard({ q, kitId, onEvaluated }: { q: Question; kitId: string | 
         <div className="mt-3 space-y-3">
           <textarea value={answer} onChange={(e) => setAnswer(e.target.value)} rows={5}
             placeholder="Type your answer as you'd say it out loud…"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm" />
+            className="field" />
           <div className="flex items-center gap-3">
             <button onClick={submit} disabled={busy || answer.trim().length < 5}
-              className="rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">
+              className="btn-primary btn-sm">
               {busy ? "Evaluating…" : "Evaluate answer"}
             </button>
             <span className="text-xs text-muted-foreground">{answer.trim().split(/\s+/).filter(Boolean).length} words</span>
@@ -226,7 +226,7 @@ function EvaluationView({ e, kind }: { e: Evaluation; kind: Question["kind"] }) 
 function StarView({ star }: { star: StarCheck }) {
   const rows: [string, boolean][] = [["Situation", star.situation], ["Task", star.task], ["Action", star.action], ["Result", star.result]];
   return (
-    <div className="mt-3 rounded-md border bg-card p-3">
+    <div className="mt-3 card p-3">
       <div className="mb-2 flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">STAR structure</p>
         <span className={cn("text-sm font-bold", scoreTone(star.score).text)}>{star.score}/100</span>

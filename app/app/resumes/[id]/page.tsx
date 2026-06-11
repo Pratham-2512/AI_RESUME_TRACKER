@@ -39,9 +39,9 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
 
   if (dbError) {
     return (
-      <div>
-        <Link href="/app/resumes" className="text-sm text-muted-foreground hover:underline">← Résumés</Link>
-        <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+      <div className="animate-fade-up">
+        <Link href="/app/resumes" className="text-sm text-muted-foreground transition-colors hover:text-foreground">← Résumés</Link>
+        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           Database not ready: {dbError}. Apply the schema (see SUPABASE_SETUP.md).
         </div>
       </div>
@@ -50,18 +50,18 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
   if (!resume) notFound();
 
   return (
-    <div>
+    <div className="animate-fade-up">
       <div className="flex items-center justify-between gap-2">
-        <Link href="/app/resumes" className="text-sm text-muted-foreground hover:underline">← Résumés</Link>
+        <Link href="/app/resumes" className="text-sm text-muted-foreground transition-colors hover:text-foreground">← Résumés</Link>
         <div className="flex items-center gap-2">
           {resume.storage_path && <DownloadOriginal resumeId={id} />}
-          <Link href={`/print/resume/${id}`} target="_blank" className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+          <Link href={`/print/resume/${id}`} target="_blank" className="btn-outline btn-sm">
             Export PDF
           </Link>
         </div>
       </div>
-      <h1 className="mt-2 text-2xl font-bold">{resume.label ?? "Résumé"}</h1>
-      <p className="mt-1 text-muted-foreground">Target: {resume.target}</p>
+      <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{resume.label ?? "Résumé"}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">Target: {resume.target}</p>
 
       <div className="mt-6 space-y-6">
         {/* Re-run ATS Analysis */}
@@ -71,7 +71,7 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
       </div>
 
       {/* View Extracted Text */}
-      <details className="mt-8 rounded-lg border bg-card p-4">
+      <details className="mt-8 card p-4">
         <summary className="cursor-pointer text-sm font-medium">View extracted text</summary>
         <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{resume.parsed_text}</pre>
       </details>

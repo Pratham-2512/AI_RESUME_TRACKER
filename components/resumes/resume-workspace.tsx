@@ -71,10 +71,10 @@ export function ResumeWorkspace({
           </div>
         )}
         <div className="ml-auto flex gap-2">
-          <button onClick={analyze} disabled={busy !== null} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+          <button onClick={analyze} disabled={busy !== null} className="btn-outline">
             {busy === "analyze" ? "Analyzing…" : analysis ? "Re-analyze" : "Analyze ATS"}
           </button>
-          <button onClick={rewrite} disabled={busy !== null} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          <button onClick={rewrite} disabled={busy !== null} className="btn-primary">
             {busy === "rewrite" ? "Rewriting…" : "AI rewrite"}
           </button>
         </div>
@@ -84,7 +84,7 @@ export function ResumeWorkspace({
 
       {analysis && (
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-lg border bg-card p-5">
+          <div className="card p-5">
             <h3 className="font-semibold">ATS breakdown</h3>
             <div className="mt-3 space-y-2">
               {Object.entries(analysis.ats_breakdown).map(([k, v]) => (
@@ -95,7 +95,7 @@ export function ResumeWorkspace({
               ))}
             </div>
           </div>
-          <div className="rounded-lg border bg-card p-5">
+          <div className="card p-5">
             <h3 className="font-semibold">Gaps</h3>
             {(analysis.strengths?.length ?? 0) > 0 && (
               <div className="mt-2">
@@ -132,7 +132,7 @@ export function ResumeWorkspace({
       )}
 
       {versions.length > 0 && (
-        <div className="rounded-lg border bg-card p-5">
+        <div className="card p-5">
           <h3 className="font-semibold">AI versions</h3>
           <div className="mt-3 space-y-3">
             {versions.map((v) => (

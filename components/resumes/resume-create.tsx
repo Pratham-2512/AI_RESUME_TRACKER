@@ -105,14 +105,14 @@ export function ResumeCreate() {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+      <button onClick={() => setOpen(true)} className="btn-primary">
         + Add résumé
       </button>
     );
   }
 
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="card p-5">
       {/* Mode toggle */}
       <div className="inline-flex rounded-md border bg-muted/40 p-0.5 text-sm">
         <button
@@ -126,8 +126,8 @@ export function ResumeCreate() {
       </div>
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <input className="rounded-md border bg-background px-3 py-2 text-sm" placeholder="Label (optional)" value={label} onChange={(e) => setLabel(e.target.value)} />
-        <select className="rounded-md border bg-background px-3 py-2 text-sm" value={target} onChange={(e) => setTarget(e.target.value)}>
+        <input className="field" placeholder="Label (optional)" value={label} onChange={(e) => setLabel(e.target.value)} />
+        <select className="field" value={target} onChange={(e) => setTarget(e.target.value)}>
           {TARGETS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
         </select>
       </div>
@@ -169,7 +169,7 @@ export function ResumeCreate() {
 
           {/* Upload status */}
           {upload && (
-            <div className="mt-3 rounded-lg border bg-background p-3 text-sm">
+            <div className="mt-3 rounded-xl border border-border bg-background p-3.5 text-sm">
               <p className="font-medium">{upload.fileName} <span className="text-xs text-muted-foreground">({(upload.fileSize / 1024).toFixed(0)} KB)</span></p>
               <ul className="mt-1.5 space-y-0.5 text-xs">
                 <li className="text-emerald-600 dark:text-emerald-400">✓ Uploaded</li>
@@ -186,7 +186,7 @@ export function ResumeCreate() {
 
       {/* Editable text (shared — extracted text lands here and stays editable) */}
       <textarea
-        className="mt-4 w-full rounded-md border bg-background px-3 py-2 text-sm" rows={mode === "upload" ? 8 : 12}
+        className="mt-4 field" rows={mode === "upload" ? 8 : 12}
         placeholder={mode === "upload" ? "Extracted text appears here — edit before saving…" : "Paste your résumé text here…"}
         value={text} onChange={(e) => setText(e.target.value)}
       />
@@ -197,9 +197,9 @@ export function ResumeCreate() {
         <button
           disabled={pending || busy || text.trim().length < 50}
           onClick={save}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="btn-primary"
         >{pending ? "Saving…" : "Save résumé"}</button>
-        <button onClick={() => { setOpen(false); reset(); }} className="rounded-md border px-4 py-2 text-sm">Cancel</button>
+        <button onClick={() => { setOpen(false); reset(); }} className="btn-outline">Cancel</button>
       </div>
     </div>
   );

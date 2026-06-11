@@ -2,10 +2,16 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import {
+  Check, Search, PenLine, Target, ShieldCheck, ArrowRight, ExternalLink,
+  BookOpen, FileText,
+} from "lucide-react";
 import { createCoverLetter, trackApplication, runCompatibilityAnalysis, runHonestTailor, runOptimizedTailor } from "@/actions/studio";
 import { buildApplicationChecklist } from "@/lib/domain/coverLetter";
 import type { CompatibilityAnalysis, SkillLevel, MatchClassification } from "@/lib/domain/tailorEngine";
 import type { TailoringOutput } from "@/actions/studio";
+import { Badge, ErrorBanner, ThinkingState } from "@/components/shared/ui";
+import { cn } from "@/lib/utils";
 
 type Resume = { id: string; label: string | null };
 type Opportunity = { id: string; title: string; company: string | null; job_text: string | null; url: string | null };
@@ -24,17 +30,17 @@ const PHASE_STEP: Record<Phase, number> = {
 };
 
 const CLASS_COLORS: Record<MatchClassification, string> = {
-  "Strong Match": "bg-emerald-500/10 text-emerald-700 border-emerald-400/40 dark:text-emerald-400",
-  "Good Match": "bg-blue-500/10 text-blue-700 border-blue-400/40 dark:text-blue-400",
-  "Moderate Match": "bg-yellow-500/10 text-yellow-700 border-yellow-400/40 dark:text-yellow-500",
-  "Weak Match": "bg-orange-500/10 text-orange-700 border-orange-400/40 dark:text-orange-400",
+  "Strong Match": "bg-success/10 text-success border-success/30",
+  "Good Match": "bg-primary/10 text-primary border-primary/30",
+  "Moderate Match": "bg-warning/10 text-amber-700 border-warning/40 dark:text-amber-400",
+  "Weak Match": "bg-orange-500/10 text-orange-600 border-orange-400/40",
   "Very Weak Match": "bg-destructive/10 text-destructive border-destructive/30",
 };
 const CLASS_RING: Record<MatchClassification, string> = {
-  "Strong Match": "border-emerald-500 text-emerald-600 dark:text-emerald-400",
-  "Good Match": "border-blue-500 text-blue-600 dark:text-blue-400",
-  "Moderate Match": "border-yellow-500 text-yellow-600 dark:text-yellow-500",
-  "Weak Match": "border-orange-500 text-orange-600 dark:text-orange-400",
+  "Strong Match": "border-success text-success",
+  "Good Match": "border-primary text-primary",
+  "Moderate Match": "border-warning text-amber-600 dark:text-amber-400",
+  "Weak Match": "border-orange-500 text-orange-600",
   "Very Weak Match": "border-destructive text-destructive",
 };
 
@@ -123,92 +129,104 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
   const canAnalyze = !!resumeId && jobTitle.trim().length >= 2 && jdText.trim().length >= 30;
   const checklist = buildApplicationChecklist({ hasTailoredResume: !!tailoring, hasCoverLetter: !!letter, company: company || null });
   const improvement = tailoring ? tailoring.afterScore - tailoring.beforeScore : 0;
+  const currentStep = PHASE_STEP[phase];
 
   return (
     <div className="space-y-6">
       {/* Stepper */}
-      <ol className="flex flex-wrap gap-2">
+      <ol className="flex flex-wrap items-center gap-y-2">
         {STEPS.map((s, i) => {
-          const active = i <= PHASE_STEP[phase];
+          const done = i < currentStep;
+          const current = i === currentStep;
           return (
-            <li key={s} className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors
-              ${active ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}>
-              <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold
-                ${active ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{i + 1}</span>
-              {s}
+            <li key={s} className="flex items-center">
+              <span className={cn(
+                "flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium transition-colors duration-200",
+                current ? "bg-primary/10 text-primary" : done ? "text-foreground" : "text-muted-foreground/60"
+              )}>
+                <span className={cn(
+                  "flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold transition-colors duration-200",
+                  done ? "bg-success text-success-foreground" : current ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                )}>
+                  {done ? <Check className="h-3 w-3" /> : i + 1}
+                </span>
+                {s}
+              </span>
+              {i < STEPS.length - 1 && (
+                <span aria-hidden className={cn("mx-1 hidden h-px w-5 sm:block", done ? "bg-success/50" : "bg-border")} />
+              )}
             </li>
           );
         })}
       </ol>
 
-      {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{error}</div>
-      )}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
 
       {/* ── STEP 1: Select Job ────────────────────────────────────────────── */}
-      <section className={`rounded-xl border bg-card p-5 ${phase !== "setup" ? "opacity-60" : ""}`}>
-        <h2 className="font-semibold">1 · Select job &amp; résumé</h2>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+      <section className={cn("card animate-fade-up p-5 transition-opacity sm:p-6", phase !== "setup" && "opacity-60")}>
+        <StepTitle n={1} title="Select job & résumé" />
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-xs text-muted-foreground">Résumé</label>
-            <select value={resumeId} onChange={(e) => setResumeId(e.target.value)} disabled={phase !== "setup"}
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed">
+            <label htmlFor="studio-resume" className="field-label">Résumé</label>
+            <select id="studio-resume" value={resumeId} onChange={(e) => setResumeId(e.target.value)} disabled={phase !== "setup"} className="field">
               {resumes.length === 0 && <option value="">No résumés — add one first</option>}
               {resumes.map((r) => <option key={r.id} value={r.id}>{r.label ?? "Résumé"}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Saved opportunity (optional)</label>
-            <select value={oppId} onChange={(e) => pickOpportunity(e.target.value)} disabled={phase !== "setup"}
-              className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed">
+            <label htmlFor="studio-opp" className="field-label">Saved opportunity (optional)</label>
+            <select id="studio-opp" value={oppId} onChange={(e) => pickOpportunity(e.target.value)} disabled={phase !== "setup"} className="field">
               <option value="">— paste a job below —</option>
               {opportunities.map((o) => <option key={o.id} value={o.id}>{o.title}{o.company ? ` · ${o.company}` : ""}</option>)}
             </select>
           </div>
         </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
-          <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title *" disabled={phase !== "setup"}
-            className="rounded-md border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed" />
-          <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" disabled={phase !== "setup"}
-            className="rounded-md border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed" />
-          <input value={applyUrl} onChange={(e) => setApplyUrl(e.target.value)} placeholder="Application link (https://…)" disabled={phase !== "setup"}
-            className="rounded-md border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed" />
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} placeholder="Job title *" disabled={phase !== "setup"} className="field" aria-label="Job title" />
+          <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" disabled={phase !== "setup"} className="field" aria-label="Company" />
+          <input value={applyUrl} onChange={(e) => setApplyUrl(e.target.value)} placeholder="Application link (https://…)" disabled={phase !== "setup"} className="field" aria-label="Application link" />
         </div>
         <textarea value={jdText} onChange={(e) => setJdText(e.target.value)} rows={6}
           placeholder="Paste the full job description here *" disabled={phase !== "setup"}
-          className="mt-3 w-full rounded-md border bg-background px-3 py-2 text-sm disabled:cursor-not-allowed" />
+          className="field mt-4" aria-label="Job description" />
         {phase === "setup" && (
-          <button onClick={runAnalysis} disabled={!canAnalyze || busy}
-            className="mt-3 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
-            {busy ? "Analyzing…" : "Analyze Compatibility →"}
-          </button>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button onClick={runAnalysis} disabled={!canAnalyze || busy} className="btn-primary">
+              {busy ? "Analyzing…" : <>Analyze Compatibility <ArrowRight className="h-4 w-4" /></>}
+            </button>
+            {!canAnalyze && (
+              <p className="text-xs text-muted-foreground">
+                {!resumeId ? "Add a résumé first." : jobTitle.trim().length < 2 ? "Enter the job title." : "Paste the job description (30+ characters)."}
+              </p>
+            )}
+          </div>
         )}
       </section>
 
       {/* ── STEP 2: Compatibility Analysis + Decision ─────────────────────── */}
       {compatibility && (phase === "compatibility" || PHASE_STEP[phase] > 1) && (
-        <section className="rounded-xl border bg-card p-5">
-          <h2 className="font-semibold">2 · JD Compatibility Analysis</h2>
+        <section className="card animate-fade-up p-5 sm:p-6">
+          <StepTitle n={2} title="JD compatibility analysis" />
 
           {/* Score + classification */}
-          <div className="mt-4 flex flex-wrap items-start gap-6">
+          <div className="mt-5 flex flex-wrap items-start gap-6">
             <div className="text-center">
-              <div className={`flex h-24 w-24 items-center justify-center rounded-full border-4 text-3xl font-bold ${CLASS_RING[compatibility.classification]}`}>
+              <div className={cn("flex h-24 w-24 items-center justify-center rounded-full border-4 text-3xl font-bold tabular-nums", CLASS_RING[compatibility.classification])}>
                 {compatibility.matchScore}%
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Current Match</p>
+              <p className="mt-2 text-xs font-medium text-muted-foreground">Current match</p>
             </div>
-            <div className="flex-1 space-y-2">
-              <span className={`inline-block rounded-full border px-3 py-1 text-xs font-semibold ${CLASS_COLORS[compatibility.classification]}`}>
+            <div className="flex-1 space-y-2.5">
+              <span className={cn("inline-block rounded-full border px-3 py-1 text-xs font-semibold", CLASS_COLORS[compatibility.classification])}>
                 {compatibility.classification}
               </span>
               {compatibility.isCareerTransition && (
-                <div className="rounded-md border border-amber-400/40 bg-amber-50/60 px-3 py-2 text-xs text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">
-                  Career Transition Opportunity Detected — transferable skills can bridge the gap.
+                <div className="rounded-xl border border-warning/30 bg-warning/5 px-3.5 py-2.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+                  Career transition opportunity detected — transferable skills can bridge the gap.
                 </div>
               )}
-              <p className="text-sm text-muted-foreground">
-                We identified <strong>{compatibility.missingKeywordCount} missing keywords</strong> · {compatibility.transferableSkills.length} transferable skills · {compatibility.weakBulletCount} weak bullets
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                We identified <strong className="text-foreground">{compatibility.missingKeywordCount} missing keywords</strong> · {compatibility.transferableSkills.length} transferable skills · {compatibility.weakBulletCount} weak bullets
               </p>
               <p className="text-sm">
                 Estimated match after optimization:{" "}
@@ -218,64 +236,56 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
           </div>
 
           {/* Three columns */}
-          <div className="mt-5 grid gap-4 sm:grid-cols-3">
-            <div className="rounded-lg border bg-emerald-50/40 p-3 dark:bg-emerald-950/20">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Strengths</p>
+          <div className="mt-6 grid gap-4 sm:grid-cols-3">
+            <AnalysisColumn label="Strengths" labelClass="text-success" surface="border-success/20 bg-success/5">
               {compatibility.matchedSkills.length > 0
-                ? <ul className="space-y-1">{compatibility.matchedSkills.slice(0, 8).map((s) => (
-                    <li key={s} className="flex items-center gap-1.5 text-sm"><span className="text-emerald-500">✓</span>{s}</li>
-                  ))}</ul>
+                ? compatibility.matchedSkills.slice(0, 8).map((s) => (
+                    <li key={s} className="flex items-center gap-2 text-sm"><Check className="h-3.5 w-3.5 shrink-0 text-success" />{s}</li>
+                  ))
                 : <p className="text-xs text-muted-foreground">No direct skill matches yet</p>}
-            </div>
-            <div className="rounded-lg border bg-destructive/5 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-destructive">Missing</p>
+            </AnalysisColumn>
+            <AnalysisColumn label="Missing" labelClass="text-destructive" surface="border-destructive/20 bg-destructive/5">
               {compatibility.missingSkills.length > 0
-                ? <ul className="space-y-1">{compatibility.missingSkills.slice(0, 8).map((s) => (
-                    <li key={s} className="flex items-center gap-1.5 text-sm"><span className="text-destructive">✗</span>{s}</li>
-                  ))}</ul>
+                ? compatibility.missingSkills.slice(0, 8).map((s) => (
+                    <li key={s} className="flex items-center gap-2 text-sm"><span aria-hidden className="text-destructive">✗</span>{s}</li>
+                  ))
                 : <p className="text-xs text-muted-foreground">Nothing critical missing</p>}
-            </div>
-            <div className="rounded-lg border bg-muted/40 p-3">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Transferable</p>
+            </AnalysisColumn>
+            <AnalysisColumn label="Transferable" labelClass="text-secondary" surface="border-border bg-muted/40">
               {compatibility.transferableSkills.length > 0
-                ? <ul className="space-y-1">{compatibility.transferableSkills.slice(0, 6).map((s) => (
-                    <li key={s} className="flex items-center gap-1.5 text-sm"><span className="text-primary">↗</span>{s}</li>
-                  ))}</ul>
+                ? compatibility.transferableSkills.slice(0, 6).map((s) => (
+                    <li key={s} className="flex items-center gap-2 text-sm"><ArrowRight className="h-3.5 w-3.5 shrink-0 -rotate-45 text-secondary" />{s}</li>
+                  ))
                 : <p className="text-xs text-muted-foreground">—</p>}
-            </div>
+            </AnalysisColumn>
           </div>
 
           {/* Decision cards — only on compatibility phase */}
           {phase === "compatibility" && (
             <>
-              <p className="mt-6 text-sm font-semibold">Your resume is not yet optimized for this role. How would you like to proceed?</p>
+              <p className="mt-7 text-sm font-semibold">How would you like to proceed?</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-3">
                 {/* Better Jobs */}
-                <Link href="/app/matches"
-                  className="flex flex-col gap-2 rounded-xl border-2 border-muted bg-muted/30 p-4 transition hover:border-muted-foreground/50 hover:bg-muted/50">
-                  <span className="text-xl">🔍</span>
-                  <span className="font-semibold text-sm">Recommend Better Jobs</span>
-                  <span className="text-xs text-muted-foreground">Find roles that better match your current profile — no changes needed.</span>
+                <Link href="/app/opportunities" className="group flex flex-col gap-2.5 rounded-2xl border border-border bg-background p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-muted-foreground/40 hover:shadow-card">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted"><Search className="h-4 w-4 text-muted-foreground" /></span>
+                  <span className="text-sm font-semibold">Recommend Better Jobs</span>
+                  <span className="text-xs leading-relaxed text-muted-foreground">Find roles that better match your current profile — no changes needed.</span>
                 </Link>
                 {/* Honest Tailoring */}
                 <button onClick={chooseHonest} disabled={busy}
-                  className="flex flex-col gap-2 rounded-xl border-2 border-emerald-400/50 bg-emerald-50/40 p-4 text-left transition hover:border-emerald-500 hover:bg-emerald-50/70 disabled:opacity-50 dark:bg-emerald-950/20 dark:hover:bg-emerald-950/40">
-                  <span className="text-xl">✏️</span>
-                  <span className="font-semibold text-sm">Honest Tailoring</span>
-                  <span className="text-xs text-muted-foreground">Rewrite bullets, surface existing keywords, highlight transferable skills. <strong>No invented content.</strong></span>
-                  <span className="mt-auto inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                    Expected ATS: 55–75%
-                  </span>
+                  className="group flex flex-col gap-2.5 rounded-2xl border border-success/40 bg-success/5 p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-success hover:shadow-card disabled:opacity-50">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/10"><PenLine className="h-4 w-4 text-success" /></span>
+                  <span className="text-sm font-semibold">Honest Tailoring</span>
+                  <span className="text-xs leading-relaxed text-muted-foreground">Rewrite bullets, surface existing keywords, highlight transferable skills. <strong>No invented content.</strong></span>
+                  <Badge tone="ok" className="mt-auto self-start">Expected ATS: 55–75%</Badge>
                 </button>
                 {/* Optimize */}
                 <button onClick={() => setPhase("confirming-skills")} disabled={busy || compatibility.missingSkills.length === 0}
-                  className="flex flex-col gap-2 rounded-xl border-2 border-primary/50 bg-primary/5 p-4 text-left transition hover:border-primary hover:bg-primary/10 disabled:opacity-50">
-                  <span className="text-xl">🎯</span>
-                  <span className="font-semibold text-sm">Optimize For This Job</span>
-                  <span className="text-xs text-muted-foreground">Tell us which missing skills you actually have — only confirmed skills get added. <strong>Never fabricated.</strong></span>
-                  <span className="mt-auto inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                    Expected ATS: 75–88%
-                  </span>
+                  className="group flex flex-col gap-2.5 rounded-2xl border border-primary/40 bg-primary/5 p-5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-primary hover:shadow-glow disabled:opacity-50">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10"><Target className="h-4 w-4 text-primary" /></span>
+                  <span className="text-sm font-semibold">Optimize For This Job</span>
+                  <span className="text-xs leading-relaxed text-muted-foreground">Tell us which missing skills you actually have — only confirmed skills get added. <strong>Never fabricated.</strong></span>
+                  <Badge tone="primary" className="mt-auto self-start">Expected ATS: 75–88%</Badge>
                 </button>
               </div>
             </>
@@ -285,27 +295,30 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
 
       {/* ── STEP 3: Skill Confirmation (Optimize path only) ───────────────── */}
       {phase === "confirming-skills" && compatibility && (
-        <section className="rounded-xl border bg-card p-5">
-          <h2 className="font-semibold">3 · Confirm Your Skills</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Only check skills where you have <strong>actual knowledge</strong>. We will never add a skill you do not confirm.
+        <section className="card animate-fade-up p-5 sm:p-6">
+          <StepTitle n={3} title="Confirm your skills" />
+          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+            Only check skills where you have <strong className="text-foreground">actual knowledge</strong>. We will never add a skill you do not confirm.
           </p>
           {compatibility.missingSkills.length === 0 ? (
-            <p className="mt-3 rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">No missing skills — your résumé already covers the JD keywords.</p>
+            <p className="mt-4 rounded-xl border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No missing skills — your résumé already covers the JD keywords.</p>
           ) : (
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-5 space-y-2.5">
               {compatibility.missingSkills.map((skill) => {
                 const state = skillConfirms[skill] ?? { confirmed: false, level: "beginner" as SkillLevel };
                 return (
-                  <li key={skill} className="flex flex-wrap items-center gap-3 rounded-md border bg-background p-3">
+                  <li key={skill} className={cn(
+                    "flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3 transition-colors",
+                    state.confirmed ? "border-primary/40 bg-primary/5" : "border-border bg-background"
+                  )}>
                     <input type="checkbox" id={`skill-${skill}`} checked={state.confirmed}
                       onChange={(e) => setSkillConfirms((p) => ({ ...p, [skill]: { ...p[skill], confirmed: e.target.checked } }))}
                       className="h-4 w-4 rounded accent-primary" />
                     <label htmlFor={`skill-${skill}`} className="flex-1 cursor-pointer text-sm font-medium">{skill}</label>
                     {state.confirmed && (
-                      <select value={state.level}
+                      <select value={state.level} aria-label={`${skill} level`}
                         onChange={(e) => setSkillConfirms((p) => ({ ...p, [skill]: { ...p[skill], level: e.target.value as SkillLevel } }))}
-                        className="rounded-md border bg-background px-2 py-1 text-xs">
+                        className="field w-auto px-2.5 py-1.5 text-xs">
                         <option value="beginner">Beginner</option>
                         <option value="intermediate">Intermediate</option>
                         <option value="advanced">Advanced</option>
@@ -316,12 +329,10 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
               })}
             </ul>
           )}
-          <div className="mt-4 flex gap-2">
-            <button onClick={() => setPhase("compatibility")}
-              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">← Back</button>
-            <button onClick={runOptimize} disabled={busy}
-              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
-              {busy ? "Optimizing…" : "Optimize Now →"}
+          <div className="mt-5 flex gap-2">
+            <button onClick={() => setPhase("compatibility")} className="btn-outline">← Back</button>
+            <button onClick={runOptimize} disabled={busy} className="btn-primary">
+              {busy ? "Optimizing…" : <>Optimize Now <ArrowRight className="h-4 w-4" /></>}
             </button>
           </div>
         </section>
@@ -329,66 +340,61 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
 
       {/* ── Loading state ─────────────────────────────────────────────────── */}
       {(phase === "analyzing" || phase === "tailoring") && (
-        <div className="flex items-center gap-3 rounded-xl border bg-card p-5 text-sm text-muted-foreground">
-          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          {phase === "analyzing" ? "Analyzing compatibility…" : "Generating optimized résumé…"}
-        </div>
+        <ThinkingState
+          label={phase === "analyzing" ? "Analyzing compatibility…" : "Generating optimized résumé…"}
+          sublabel={phase === "analyzing" ? "Matching your résumé against the job description" : "Rewriting sections with only the skills you confirmed"}
+        />
       )}
 
       {/* ── STEP 4: Tailoring Report ──────────────────────────────────────── */}
       {tailoring && (phase === "report" || PHASE_STEP[phase] > 3) && (
-        <section className="rounded-xl border bg-card p-5">
-          <h2 className="font-semibold">4 · Tailoring Report</h2>
+        <section className="card animate-fade-up p-5 sm:p-6">
+          <StepTitle n={4} title="Tailoring report" />
 
           {/* Score delta row */}
-          <div className="mt-4 flex flex-wrap gap-4">
-            <div className="rounded-lg border bg-muted/30 px-5 py-3 text-center">
-              <p className="text-xs text-muted-foreground">Match Before</p>
-              <p className="text-2xl font-bold">{tailoring.beforeScore}%</p>
+          <div className="mt-5 flex flex-wrap items-center gap-3 sm:gap-4">
+            <div className="min-w-28 rounded-2xl border border-border bg-muted/40 px-6 py-4 text-center">
+              <p className="text-xs font-medium text-muted-foreground">Match before</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight">{tailoring.beforeScore}%</p>
             </div>
-            <div className="flex items-center text-muted-foreground">→</div>
-            <div className="rounded-lg border border-primary/30 bg-primary/5 px-5 py-3 text-center">
-              <p className="text-xs text-muted-foreground">Match After</p>
-              <p className="text-2xl font-bold text-primary">{tailoring.afterScore}%</p>
+            <ArrowRight className="h-5 w-5 text-muted-foreground/50" />
+            <div className="min-w-28 rounded-2xl border border-primary/30 bg-primary/5 px-6 py-4 text-center">
+              <p className="text-xs font-medium text-muted-foreground">Match after</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-primary">{tailoring.afterScore}%</p>
             </div>
-            <div className="flex items-center text-muted-foreground">→</div>
-            <div className="rounded-lg border border-emerald-400/40 bg-emerald-50/50 px-5 py-3 text-center dark:bg-emerald-950/20">
-              <p className="text-xs text-muted-foreground">Improvement</p>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">+{improvement}%</p>
+            <div className="min-w-28 rounded-2xl border border-success/30 bg-success/5 px-6 py-4 text-center">
+              <p className="text-xs font-medium text-muted-foreground">Improvement</p>
+              <p className="mt-1 text-3xl font-bold tabular-nums tracking-tight text-success">+{improvement}%</p>
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="mt-6 grid gap-5 sm:grid-cols-2">
             {/* Sections modified */}
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Sections Modified</p>
-              <ul className="space-y-1">
+              <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Sections modified</p>
+              <ul className="space-y-1.5">
                 {tailoring.sectionsModified.map((s) => (
-                  <li key={s} className="flex items-start gap-2 text-sm"><span className="mt-0.5 text-emerald-500">✓</span>{s}</li>
+                  <li key={s} className="flex items-start gap-2 text-sm"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />{s}</li>
                 ))}
                 {tailoring.sectionsModified.length === 0 && <li className="text-xs text-muted-foreground">Minimal changes needed</li>}
               </ul>
             </div>
 
             {/* Keywords + transferable */}
-            <div className="space-y-4">
+            <div className="space-y-5">
               {tailoring.keywordsAdded.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Keywords Added</p>
+                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Keywords added</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {tailoring.keywordsAdded.map((k) => (
-                      <span key={k} className="rounded-full bg-primary/10 px-2.5 py-1 text-xs text-primary">{k}</span>
-                    ))}
+                    {tailoring.keywordsAdded.map((k) => <Badge key={k} tone="primary">{k}</Badge>)}
                   </div>
                 </div>
               )}
               {tailoring.transferableSkillsUsed.length > 0 && (
                 <div>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Transferable Skills Used</p>
+                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Transferable skills used</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {tailoring.transferableSkillsUsed.map((s) => (
-                      <span key={s} className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{s}</span>
-                    ))}
+                    {tailoring.transferableSkillsUsed.map((s) => <Badge key={s}>{s}</Badge>)}
                   </div>
                 </div>
               )}
@@ -396,42 +402,46 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
           </div>
 
           {/* Integrity verification */}
-          <div className="mt-5 rounded-lg border border-emerald-400/30 bg-emerald-50/40 p-4 dark:bg-emerald-950/20">
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-400">Integrity Verification</p>
-            <ul className="grid gap-1 sm:grid-cols-2">
+          <div className="mt-6 rounded-2xl border border-success/25 bg-success/5 p-5">
+            <p className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-success">
+              <ShieldCheck className="h-4 w-4" /> Integrity verification
+            </p>
+            <ul className="grid gap-1.5 sm:grid-cols-2">
               {(["No fake experience added", "No fake projects added", "No fake certifications added", "No fabricated achievements"] as const).map((item) => (
-                <li key={item} className="flex items-center gap-2 text-sm text-emerald-700 dark:text-emerald-400">
-                  <span className="font-bold">✓</span>{item}
+                <li key={item} className="flex items-center gap-2 text-sm text-success">
+                  <Check className="h-4 w-4 shrink-0" />{item}
                 </li>
               ))}
             </ul>
           </div>
 
           {/* Optimized résumé preview */}
-          <details className="mt-4 rounded-md border">
-            <summary className="cursor-pointer px-4 py-2 text-sm font-medium">View optimized résumé</summary>
-            <pre className="overflow-x-auto whitespace-pre-wrap px-4 py-3 text-xs leading-relaxed">{tailoring.contentMd}</pre>
+          <details className="group mt-5 overflow-hidden rounded-xl border border-border">
+            <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium transition-colors hover:bg-muted/50">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              View optimized résumé
+            </summary>
+            <pre className="overflow-x-auto whitespace-pre-wrap border-t border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed">{tailoring.contentMd}</pre>
           </details>
 
           {/* Learning roadmap (when match < 70) */}
           {tailoring.learningRoadmap && (
-            <div className="mt-5 rounded-lg border border-amber-400/40 bg-amber-50/40 p-4 dark:bg-amber-950/20">
-              <p className="mb-3 font-semibold text-sm text-amber-800 dark:text-amber-300">📚 Learning Roadmap — close the remaining gap</p>
-              <div className="mb-3 flex flex-wrap gap-2">
+            <div className="mt-6 rounded-2xl border border-warning/30 bg-warning/5 p-5">
+              <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-700 dark:text-amber-400">
+                <BookOpen className="h-4 w-4" /> Learning roadmap — close the remaining gap
+              </p>
+              <div className="mb-4 flex flex-wrap gap-1.5">
                 {tailoring.learningRoadmap.items.map((item) => (
-                  <span key={item.skill} className={`rounded-full border px-2.5 py-1 text-xs font-medium
-                    ${item.priority === "high" ? "border-destructive/30 bg-destructive/10 text-destructive" :
-                      item.priority === "medium" ? "border-amber-400/40 bg-amber-100/60 text-amber-700 dark:text-amber-400" :
-                      "border-border bg-muted text-muted-foreground"}`}>
+                  <Badge key={item.skill} tone={item.priority === "high" ? "gap" : item.priority === "medium" ? "warn" : "neutral"}>
                     {item.skill} · {item.weeks}w
-                  </span>
+                  </Badge>
                 ))}
               </div>
-              <div className="grid gap-2 text-xs sm:grid-cols-3">
+              <div className="grid gap-3 text-xs sm:grid-cols-3">
                 {([["30-Day", tailoring.learningRoadmap.plan30], ["60-Day", tailoring.learningRoadmap.plan60], ["90-Day", tailoring.learningRoadmap.plan90]] as const).map(([label, steps]) => (
-                  <div key={label} className="rounded-md border bg-background p-2">
-                    <p className="mb-1 font-semibold text-muted-foreground">{label} Plan</p>
-                    <ul className="space-y-0.5">{steps.map((s, i) => <li key={i} className="text-muted-foreground">• {s}</li>)}</ul>
+                  <div key={label} className="rounded-xl border border-border bg-background p-3.5">
+                    <p className="mb-1.5 font-semibold">{label} plan</p>
+                    <ul className="space-y-1">{steps.map((s, i) => <li key={i} className="leading-relaxed text-muted-foreground">• {s}</li>)}</ul>
                   </div>
                 ))}
               </div>
@@ -439,9 +449,8 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
           )}
 
           {phase === "report" && (
-            <button onClick={genLetter} disabled={busy}
-              className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
-              {busy ? "Writing cover letter…" : "Generate Cover Letter →"}
+            <button onClick={genLetter} disabled={busy} className="btn-primary mt-5">
+              {busy ? "Writing cover letter…" : <>Generate Cover Letter <ArrowRight className="h-4 w-4" /></>}
             </button>
           )}
         </section>
@@ -449,14 +458,13 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
 
       {/* ── STEP 5: Cover Letter ──────────────────────────────────────────── */}
       {letter && (phase === "cover-letter" || phase === "apply") && (
-        <section className="rounded-xl border bg-card p-5">
-          <h2 className="font-semibold">5 · Cover Letter</h2>
-          <p className="mt-1 text-xs text-muted-foreground">{letter.title}{letter.id ? " · saved to Documents" : ""}</p>
-          <pre className="mt-3 whitespace-pre-wrap rounded-md border bg-background p-4 text-sm leading-relaxed">{letter.content}</pre>
+        <section className="card animate-fade-up p-5 sm:p-6">
+          <StepTitle n={5} title="Cover letter" />
+          <p className="mt-1.5 text-xs text-muted-foreground">{letter.title}{letter.id ? " · saved to Documents" : ""}</p>
+          <pre className="mt-4 whitespace-pre-wrap rounded-xl border border-border bg-background p-5 text-sm leading-relaxed">{letter.content}</pre>
           {phase === "cover-letter" && (
-            <button onClick={() => setPhase("apply")}
-              className="mt-4 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-              Apply &amp; Track →
+            <button onClick={() => setPhase("apply")} className="btn-primary mt-5">
+              Apply &amp; Track <ArrowRight className="h-4 w-4" />
             </button>
           )}
         </section>
@@ -464,37 +472,59 @@ export function ApplicationStudio({ resumes, opportunities }: { resumes: Resume[
 
       {/* ── STEP 6: Apply & Track ─────────────────────────────────────────── */}
       {phase === "apply" && (
-        <section className="rounded-xl border bg-card p-5">
-          <h2 className="font-semibold">6 · Apply Assistant</h2>
-          <ul className="mt-3 space-y-2">
+        <section className="card animate-fade-up p-5 sm:p-6">
+          <StepTitle n={6} title="Apply assistant" />
+          <ul className="mt-4 space-y-2.5">
             {checklist.map((c) => (
-              <li key={c.id} className="flex items-start gap-3 rounded-md border bg-background p-3">
-                <input type="checkbox" checked={!!checked[c.id]} onChange={(e) => setChecked({ ...checked, [c.id]: e.target.checked })} className="mt-1 h-4 w-4 accent-primary" />
-                <div>
+              <li key={c.id} className="flex items-start gap-3 rounded-xl border border-border bg-background px-4 py-3">
+                <input type="checkbox" id={`check-${c.id}`} checked={!!checked[c.id]} onChange={(e) => setChecked({ ...checked, [c.id]: e.target.checked })} className="mt-1 h-4 w-4 rounded accent-primary" />
+                <label htmlFor={`check-${c.id}`} className="cursor-pointer">
                   <p className="text-sm font-medium">{c.label}</p>
-                  {c.detail && <p className="text-xs text-muted-foreground">{c.detail}</p>}
-                </div>
+                  {c.detail && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{c.detail}</p>}
+                </label>
               </li>
             ))}
           </ul>
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-5 flex flex-wrap gap-2">
             {applyUrl && (
-              <a href={applyUrl} target="_blank" rel="noopener noreferrer"
-                className="rounded-md border px-4 py-2 text-sm font-medium transition hover:bg-muted">↗ Open application page</a>
+              <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="btn-outline">
+                <ExternalLink className="h-4 w-4" /> Open application page
+              </a>
             )}
             {trackedId ? (
-              <Link href="/app/applications" className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white">
-                ✓ Tracked — view pipeline
+              <Link href="/app/applications" className="btn-success">
+                <Check className="h-4 w-4" /> Tracked — view pipeline
               </Link>
             ) : (
-              <button onClick={track} disabled={busy}
-                className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+              <button onClick={track} disabled={busy} className="btn-primary">
                 {busy ? "Tracking…" : "Track this application"}
               </button>
             )}
           </div>
         </section>
       )}
+    </div>
+  );
+}
+
+/* ---------------- small presentational pieces ---------------- */
+
+function StepTitle({ n, title }: { n: number; title: string }) {
+  return (
+    <h2 className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight">
+      <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary/10 text-xs font-bold text-primary">{n}</span>
+      {title}
+    </h2>
+  );
+}
+
+function AnalysisColumn({ label, labelClass, surface, children }: {
+  label: string; labelClass: string; surface: string; children: React.ReactNode;
+}) {
+  return (
+    <div className={cn("rounded-xl border p-4", surface)}>
+      <p className={cn("mb-2.5 text-xs font-semibold uppercase tracking-wider", labelClass)}>{label}</p>
+      <ul className="space-y-1.5">{children}</ul>
     </div>
   );
 }

@@ -39,26 +39,26 @@ export function OpportunityAnalyzer() {
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <div className="rounded-lg border bg-card p-5">
+      <div className="card p-5">
         <div className="mb-3 flex gap-1">
           <Tab active={mode === "text"} onClick={() => setMode("text")}>Paste description</Tab>
           <Tab active={mode === "url"} onClick={() => setMode("url")}>Paste URL</Tab>
         </div>
         {mode === "text" ? (
-          <textarea className="w-full rounded-md border bg-background px-3 py-2 text-sm" rows={14}
+          <textarea className="field" rows={14}
             placeholder="Paste the full job description here…" value={jobText} onChange={(e) => setJobText(e.target.value)} />
         ) : (
-          <input className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+          <input className="field"
             placeholder="https://… (LinkedIn / Naukri / company careers page)" value={jobUrl} onChange={(e) => setJobUrl(e.target.value)} />
         )}
         {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
         <button onClick={analyze} disabled={busy || (mode === "text" ? jobText.trim().length < 30 : !jobUrl)}
-          className="mt-3 rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          className="mt-3 btn-primary">
           {busy ? "Analyzing…" : "Analyze fit"}
         </button>
       </div>
 
-      <div className="rounded-lg border bg-card p-5">
+      <div className="card p-5">
         {!result ? (
           <p className="flex h-full items-center justify-center text-center text-sm text-muted-foreground">
             Paste a job and hit Analyze to get a match score, interview probability, skill gaps, and an application strategy.

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createDb } from "@/lib/supabase/db";
 import { ResumeCreate } from "@/components/resumes/resume-create";
+import { PageHeader, ErrorBanner, Badge, Empty } from "@/components/shared/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -19,32 +20,27 @@ export default async function ResumesPage() {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Résumés</h1>
-      <p className="mt-1 text-muted-foreground">Get an ATS score and an AI-optimized rewrite.</p>
+    <div className="animate-fade-up space-y-6">
+      <PageHeader title="Résumés" desc="Get an ATS score and an AI-optimized rewrite." />
 
       {dbError && (
-        <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          Database not ready: {dbError}. Apply the schema (see SUPABASE_SETUP.md).
-        </div>
+        <ErrorBanner>Database not ready: {dbError}. Apply the schema (see SUPABASE_SETUP.md).</ErrorBanner>
       )}
 
-      <div className="mt-6"><ResumeCreate /></div>
+      <ResumeCreate />
 
-      <div className="mt-6 space-y-3">
+      <div className="space-y-3">
         {resumes.map((r) => (
-          <Link key={r.id} href={`/app/resumes/${r.id}`} className="flex items-center justify-between rounded-lg border bg-card p-4 hover:bg-muted">
+          <Link key={r.id} href={`/app/resumes/${r.id}`} className="card card-hover group flex items-center justify-between p-5">
             <div>
-              <p className="font-medium">{r.label ?? "Résumé"} {r.is_primary && <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">primary</span>}</p>
-              <p className="text-sm text-muted-foreground">Target: {r.target} · {r.status}</p>
+              <p className="font-semibold">{r.label ?? "Résumé"} {r.is_primary && <Badge tone="primary" className="ml-2">primary</Badge>}</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">Target: {r.target} · {r.status}</p>
             </div>
-            <span className="text-sm text-primary">Open →</span>
+            <span className="text-sm font-medium text-primary transition-transform duration-150 group-hover:translate-x-0.5">Open →</span>
           </Link>
         ))}
         {resumes.length === 0 && !dbError && (
-          <p className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            No résumés yet. Add one to get your ATS score.
-          </p>
+          <Empty>No résumés yet. Add one to get your ATS score.</Empty>
         )}
       </div>
     </div>

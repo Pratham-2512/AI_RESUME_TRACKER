@@ -20,7 +20,7 @@ export default function Error({
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
-      <div className="max-w-md rounded-xl border bg-card p-8 shadow-sm">
+      <div className="max-w-md card p-8">
         <h1 className="text-xl font-bold">Something went wrong</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           This page hit an unexpected error. This usually means a required
@@ -34,7 +34,7 @@ export default function Error({
         )}
         <button
           onClick={reset}
-          className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+          className="mt-6 btn-primary"
         >
           Try again
         </button>

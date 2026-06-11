@@ -29,13 +29,13 @@ export function ResumeInspector({ resumeId }: { resumeId: string }) {
   }
 
   return (
-    <div className="rounded-lg border bg-card p-5">
+    <div className="card p-5">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="font-semibold">Instant analysis</h3>
           <p className="text-xs text-muted-foreground">Deterministic — no AI key needed.</p>
         </div>
-        <button onClick={run} disabled={busy} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+        <button onClick={run} disabled={busy} className="btn-primary">
           {busy ? "Analyzing…" : a ? "Re-run" : "Run analysis"}
         </button>
       </div>

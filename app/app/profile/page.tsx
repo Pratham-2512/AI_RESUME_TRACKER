@@ -1,6 +1,7 @@
 import { createDb } from "@/lib/supabase/db";
 import { OWNER_ID } from "@/lib/owner";
 import { ProfileEditor } from "@/components/profile/profile-editor";
+import { PageHeader, ErrorBanner } from "@/components/shared/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -36,19 +37,15 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Profile</h1>
-      <p className="mt-1 text-muted-foreground">
-        Your career foundation. Every AI feature uses this — keep it current.
-      </p>
+    <div className="animate-fade-up space-y-6">
+      <PageHeader
+        title="Profile"
+        desc="Your career foundation. Every AI feature uses this — keep it current."
+      />
       {dbError && (
-        <div className="mt-4 rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-          Database not ready: {dbError}. Apply the schema (see SUPABASE_SETUP.md).
-        </div>
+        <ErrorBanner>Database not ready: {dbError}. Apply the schema (see SUPABASE_SETUP.md).</ErrorBanner>
       )}
-      <div className="mt-6">
-        <ProfileEditor profile={profile} skills={skills} experience={experience} />
-      </div>
+      <ProfileEditor profile={profile} skills={skills} experience={experience} />
     </div>
   );
 }

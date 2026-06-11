@@ -61,7 +61,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
-const inputCls = "w-full rounded-md border bg-background px-3 py-2 text-sm";
+const inputCls = "field";
 
 function PersonalTab({ profile, onSaved }: { profile: Profile; onSaved: () => void }) {
   const [pending, start] = useTransition();
@@ -99,7 +99,7 @@ function PersonalTab({ profile, onSaved }: { profile: Profile; onSaved: () => vo
       <div className="sm:col-span-2"><Field label="Summary"><textarea className={inputCls} rows={4} value={form.summary} onChange={set("summary")} /></Field></div>
       <div className="sm:col-span-2"><Field label="Career goals"><textarea className={inputCls} rows={3} value={form.career_goals} onChange={set("career_goals")} /></Field></div>
       <div className="sm:col-span-2">
-        <button onClick={save} disabled={pending} className="rounded-md bg-primary px-5 py-2 font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+        <button onClick={save} disabled={pending} className="btn-primary">
           {pending ? "Saving…" : "Save & re-embed"}
         </button>
       </div>
@@ -125,13 +125,13 @@ function SkillsTab({ skills }: { skills: Skill[] }) {
       </div>
       <div className="mt-4 flex gap-2">
         <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="Add a skill (e.g. Python)" />
-        <select className="rounded-md border bg-background px-2 text-sm" value={prof} onChange={(e) => setProf(e.target.value)}>
+        <select className="field w-auto px-2 py-1" value={prof} onChange={(e) => setProf(e.target.value)}>
           {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
         </select>
         <button
           disabled={pending || !name.trim()}
           onClick={() => start(async () => { await addSkill({ name, proficiency: Number(prof) }); await reembedProfile(); setName(""); })}
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="btn-primary"
         >Add</button>
       </div>
     </div>
@@ -146,7 +146,7 @@ function ExperienceTab({ experience }: { experience: Experience[] }) {
   return (
     <div className="space-y-4">
       {experience.map((x) => (
-        <div key={x.id} className="rounded-lg border bg-card p-4">
+        <div key={x.id} className="card p-4">
           <div className="flex justify-between">
             <div>
               <p className="font-semibold">{x.title} · {x.company}</p>
@@ -168,7 +168,7 @@ function ExperienceTab({ experience }: { experience: Experience[] }) {
         <button
           disabled={pending || !f.title.trim() || !f.company.trim()}
           onClick={() => start(async () => { await addExperience(f); await reembedProfile(); setF({ company: "", title: "", start_date: "", end_date: "", description: "" }); })}
-          className="mt-3 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          className="mt-3 btn-primary"
         >Add experience</button>
       </div>
     </div>

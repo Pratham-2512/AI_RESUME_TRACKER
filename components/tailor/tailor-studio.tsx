@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { Download, Sparkles } from "lucide-react";
 import { lineDiff } from "@/lib/domain/diff";
+import { SectionCard, ScoreRing, MetricBar, Chips, ErrorBanner, ThinkingState, Badge } from "@/components/shared/ui";
 
 type Report = {
   matchScore: number; interviewProbability: { label: string; pct: number };
@@ -52,47 +54,55 @@ export function TailorStudio({ resumes }: { resumes: { id: string; label: string
     ].join("\n");
   }
 
+  const inputsReady = jdText.trim().length >= 30 && (usePaste ? resumeText.trim().length >= 30 : !!resumeId);
+
   return (
     <div className="space-y-6">
       {/* Inputs */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-lg border bg-card p-5">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="font-semibold">Your résumé</h3>
-            {resumes.length > 0 && (
-              <button onClick={() => setUsePaste(!usePaste)} className="text-xs text-primary hover:underline">
-                {usePaste ? "Pick saved résumé" : "Paste text instead"}
-              </button>
-            )}
-          </div>
+        <SectionCard
+          title="Your résumé"
+          right={resumes.length > 0 ? (
+            <button onClick={() => setUsePaste(!usePaste)} className="text-xs font-medium text-primary transition-colors hover:text-primary/80">
+              {usePaste ? "Pick saved résumé" : "Paste text instead"}
+            </button>
+          ) : undefined}
+        >
           {usePaste ? (
-            <textarea className="w-full rounded-md border bg-background px-3 py-2 text-sm" rows={10} placeholder="Paste your résumé text…" value={resumeText} onChange={(e) => setResumeText(e.target.value)} />
+            <textarea className="field" rows={10} placeholder="Paste your résumé text…" value={resumeText} onChange={(e) => setResumeText(e.target.value)} />
           ) : (
-            <select className="w-full rounded-md border bg-background px-3 py-2 text-sm" value={resumeId} onChange={(e) => setResumeId(e.target.value)}>
+            <select className="field" value={resumeId} onChange={(e) => setResumeId(e.target.value)} aria-label="Résumé">
               {resumes.map((r) => <option key={r.id} value={r.id}>{r.label ?? "Résumé"}</option>)}
             </select>
           )}
-        </div>
-        <div className="rounded-lg border bg-card p-5">
-          <h3 className="mb-2 font-semibold">Job description</h3>
-          <textarea className="w-full rounded-md border bg-background px-3 py-2 text-sm" rows={10} placeholder="Paste the full job description…" value={jdText} onChange={(e) => setJdText(e.target.value)} />
-        </div>
+        </SectionCard>
+        <SectionCard title="Job description">
+          <textarea className="field" rows={10} placeholder="Paste the full job description…" value={jdText} onChange={(e) => setJdText(e.target.value)} aria-label="Job description" />
+        </SectionCard>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        <button onClick={() => run(false)} disabled={busy !== null || jdText.trim().length < 30 || (usePaste ? resumeText.trim().length < 30 : !resumeId)}
-          className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50">
+      <div className="flex flex-wrap items-center gap-2">
+        <button onClick={() => run(false)} disabled={busy !== null || !inputsReady} className="btn-primary">
           {busy === "analyze" ? "Analyzing…" : "Analyze match"}
         </button>
-        <button onClick={() => run(true)} disabled={busy !== null || jdText.trim().length < 30 || (usePaste ? resumeText.trim().length < 30 : !resumeId)}
-          className="rounded-md border px-5 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+        <button onClick={() => run(true)} disabled={busy !== null || !inputsReady} className="btn-outline">
+          <Sparkles className="h-4 w-4 text-primary" />
           {busy === "generate" ? "Tailoring…" : "Generate tailored résumé (AI)"}
         </button>
-        {data && <button onClick={() => download("tailoring-report.md", reportToMd(data.report), "text/markdown")} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">Export report (.md)</button>}
+        {data && (
+          <button onClick={() => download("tailoring-report.md", reportToMd(data.report), "text/markdown")} className="btn-ghost">
+            <Download className="h-4 w-4" /> Export report
+          </button>
+        )}
+        {!inputsReady && !busy && (
+          <p className="text-xs text-muted-foreground">Paste a job description (30+ characters) to begin.</p>
+        )}
       </div>
-      {err && <p className="text-sm text-destructive">{err}</p>}
+      {err && <ErrorBanner>{err}</ErrorBanner>}
 
-      {data && <Results data={data} onDownload={download} />}
+      {busy && <ThinkingState label={busy === "analyze" ? "Analyzing your match…" : "Generating tailored résumé…"} sublabel="Scoring keywords, skills, experience, structure, and quantification" />}
+
+      {data && !busy && <Results data={data} onDownload={download} />}
     </div>
   );
 }
@@ -100,120 +110,102 @@ export function TailorStudio({ resumes }: { resumes: { id: string; label: string
 function Results({ data, onDownload }: { data: Resp; onDownload: (n: string, t: string, m: string) => void }) {
   const { report: rep, tailored, aiUnavailable } = data;
   return (
-    <div className="space-y-6">
-      {/* ATS breakdown */}
-      <section className="rounded-lg border bg-card p-5">
-        <div className="flex items-center gap-6">
-          <Ring value={rep.ats.overall} />
+    <div className="animate-fade-up space-y-6">
+      {/* 1 · Match score + ATS — the "will I get shortlisted?" answer comes first */}
+      <SectionCard title="ATS compatibility" desc="How résumé screening software will score you">
+        <div className="flex flex-wrap items-center gap-8">
+          <ScoreRing value={rep.ats.overall} label="ATS match" size={128} />
           <div>
-            <p className="text-sm text-muted-foreground">Interview probability</p>
-            <p className="text-xl font-bold">{rep.interviewProbability.label} · ~{rep.interviewProbability.pct}%</p>
+            <p className="text-xs font-medium text-muted-foreground">Interview probability</p>
+            <p className="mt-1 text-2xl font-bold tracking-tight">{rep.interviewProbability.label}</p>
+            <p className="text-sm tabular-nums text-muted-foreground">~{rep.interviewProbability.pct}% likelihood</p>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {([["Keyword", rep.ats.keywordMatch], ["Skills", rep.ats.skillsMatch], ["Experience", rep.ats.experienceMatch], ["Structure", rep.ats.structure], ["Quantification", rep.ats.quantification]] as const).map(([l, v]) => (
-            <Bar key={l} label={l} value={v} />
+            <MetricBar key={l} label={l} value={v} />
           ))}
         </div>
-      </section>
+      </SectionCard>
 
-      {/* Skill gap */}
-      <section className="rounded-lg border bg-card p-5">
-        <h3 className="mb-3 font-semibold">Skill gap</h3>
-        <div className="space-y-2">
+      {/* 2 · Skill gap */}
+      <SectionCard title="Skill gap" desc="JD skills you have vs. skills you're missing">
+        <div className="space-y-4">
           {rep.gap.map((g) => (
-            <div key={g.skill}>
-              <div className="flex justify-between text-sm"><span>{g.skill}</span><span className={g.have ? "text-primary" : "text-destructive"}>{g.have ? "have" : "missing"}</span></div>
-              <div className="mt-1 h-2 rounded bg-muted"><div className={`h-2 rounded ${g.have ? "bg-primary" : "bg-destructive"}`} style={{ width: `${g.level}%` }} /></div>
-            </div>
+            <MetricBar
+              key={g.skill}
+              label={<span className="inline-flex items-center gap-2">{g.skill} <Badge tone={g.have ? "ok" : "gap"}>{g.have ? "have" : "missing"}</Badge></span>}
+              value={g.level}
+              showValue={false}
+              tone={g.have ? "bg-success" : "bg-destructive"}
+            />
           ))}
           {rep.gap.length === 0 && <p className="text-sm text-muted-foreground">No JD skills detected.</p>}
         </div>
-      </section>
+      </SectionCard>
 
-      {/* Keywords */}
+      {/* 3 · Keywords */}
       <section className="grid gap-4 lg:grid-cols-2">
-        <Card title="Matched keywords"><Chips items={rep.matchedKeywords} tone="ok" empty="None matched." /></Card>
-        <Card title="Missing keywords"><Chips items={rep.missingKeywords} tone="gap" empty="Full coverage." /></Card>
+        <SectionCard title="Matched keywords"><Chips items={rep.matchedKeywords} tone="ok" empty="None matched." /></SectionCard>
+        <SectionCard title="Missing keywords"><Chips items={rep.missingKeywords} tone="gap" empty="Full coverage." /></SectionCard>
       </section>
 
-      {/* Bullet improvements */}
-      <section className="rounded-lg border bg-card p-5">
-        <h3 className="mb-3 font-semibold">Bullet improvements ({rep.bulletImprovements.length})</h3>
+      {/* 4 · Bullet improvements */}
+      <SectionCard title={`Bullet improvements (${rep.bulletImprovements.length})`}>
         {rep.bulletImprovements.length === 0 ? <p className="text-sm text-muted-foreground">No weak bullets detected.</p> : (
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {rep.bulletImprovements.slice(0, 15).map((b, i) => (
-              <li key={i} className="rounded-md border border-destructive/20 bg-destructive/5 p-3 text-sm">
-                <p className="font-medium">“{b.original}”</p>
-                <p className="mt-1 text-xs text-destructive">{b.issues.join(" · ")}</p>
-                <p className="mt-1 text-xs text-muted-foreground">→ {b.suggestion}</p>
+              <li key={i} className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-sm">
+                <p className="font-medium">&ldquo;{b.original}&rdquo;</p>
+                <p className="mt-1.5 text-xs text-destructive">{b.issues.join(" · ")}</p>
+                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">→ {b.suggestion}</p>
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </SectionCard>
 
-      {/* Recommendations */}
-      <section className="rounded-lg border bg-card p-5">
-        <h3 className="mb-2 font-semibold">Recommendations</h3>
-        <ul className="list-disc space-y-1 pl-5 text-sm">{rep.recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
-      </section>
+      {/* 5 · Recommendations */}
+      <SectionCard title="Recruiter recommendations">
+        <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed">{rep.recommendations.map((r, i) => <li key={i}>{r}</li>)}</ul>
+      </SectionCard>
 
-      {/* AI tailoring result OR gated message */}
+      {/* 6 · AI tailoring result OR gated message */}
       {aiUnavailable && (
-        <div className="rounded-md border border-amber-400/40 bg-amber-50/50 p-4 text-sm text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">{aiUnavailable}</div>
+        <div className="rounded-xl border border-warning/30 bg-warning/5 px-4 py-3 text-sm leading-relaxed text-amber-700 dark:text-amber-400">{aiUnavailable}</div>
       )}
       {tailored && (
         <>
-          <section className="rounded-lg border bg-card p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-semibold">Change summary</h3>
-              <div className="flex gap-2">
-                <button onClick={() => onDownload("tailored-resume.md", tailored.content_md, "text/markdown")} className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted">.md</button>
-                <button onClick={() => onDownload("tailored-resume.txt", tailored.content_md, "text/plain")} className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted">.txt</button>
-                {tailored.versionId && <a href={`/print/resume/${tailored.versionId}`} target="_blank" className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted">PDF</a>}
+          <SectionCard
+            title="Change summary"
+            right={
+              <div className="flex gap-1.5">
+                <button onClick={() => onDownload("tailored-resume.md", tailored.content_md, "text/markdown")} className="btn-outline btn-sm">.md</button>
+                <button onClick={() => onDownload("tailored-resume.txt", tailored.content_md, "text/plain")} className="btn-outline btn-sm">.txt</button>
+                {tailored.versionId && <a href={`/print/resume/${tailored.versionId}`} target="_blank" className="btn-outline btn-sm">PDF</a>}
               </div>
-            </div>
-            {tailored.added_keywords.length > 0 && <p className="mb-2 text-sm"><span className="text-muted-foreground">Surfaced keywords: </span>{tailored.added_keywords.join(", ")}</p>}
-            <ul className="list-disc space-y-1 pl-5 text-sm">{tailored.changes.map((c, i) => <li key={i}>{c}</li>)}</ul>
-          </section>
+            }
+          >
+            {tailored.added_keywords.length > 0 && <p className="mb-3 text-sm"><span className="text-muted-foreground">Surfaced keywords: </span>{tailored.added_keywords.join(", ")}</p>}
+            <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed">{tailored.changes.map((c, i) => <li key={i}>{c}</li>)}</ul>
+          </SectionCard>
 
           {/* Side-by-side + diff */}
           <section className="grid gap-4 lg:grid-cols-2">
-            <Card title="Original"><pre className="max-h-96 overflow-auto whitespace-pre-wrap text-xs">{data.originalText}</pre></Card>
-            <Card title="Tailored"><pre className="max-h-96 overflow-auto whitespace-pre-wrap text-xs">{tailored.content_md}</pre></Card>
+            <SectionCard title="Original"><pre className="max-h-96 overflow-auto whitespace-pre-wrap text-xs leading-relaxed">{data.originalText}</pre></SectionCard>
+            <SectionCard title="Tailored"><pre className="max-h-96 overflow-auto whitespace-pre-wrap text-xs leading-relaxed">{tailored.content_md}</pre></SectionCard>
           </section>
-          <section className="rounded-lg border bg-card p-5">
-            <h3 className="mb-3 font-semibold">Diff</h3>
-            <pre className="max-h-96 overflow-auto rounded bg-muted/40 p-3 text-xs leading-relaxed">
+          <SectionCard title="Diff">
+            <pre className="max-h-96 overflow-auto rounded-xl bg-muted/40 p-4 text-xs leading-relaxed">
               {lineDiff(data.originalText, tailored.content_md).map((op, i) => (
-                <div key={i} className={op.type === "added" ? "bg-green-500/15 text-green-700 dark:text-green-400" : op.type === "removed" ? "bg-red-500/15 text-red-700 dark:text-red-400" : ""}>
+                <div key={i} className={op.type === "added" ? "bg-success/15 text-success" : op.type === "removed" ? "bg-destructive/10 text-destructive" : ""}>
                   <span className="select-none opacity-60">{op.type === "added" ? "+ " : op.type === "removed" ? "- " : "  "}</span>{op.text || " "}
                 </div>
               ))}
             </pre>
-          </section>
+          </SectionCard>
         </>
       )}
     </div>
   );
-}
-
-function Ring({ value }: { value: number }) {
-  return <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-primary text-2xl font-bold text-primary">{value}</div>;
-}
-function Bar({ label, value }: { label: string; value: number }) {
-  return (
-    <div>
-      <div className="flex justify-between text-sm"><span>{label}</span><span className="text-muted-foreground">{value}</span></div>
-      <div className="mt-1 h-2 rounded bg-muted"><div className="h-2 rounded bg-primary" style={{ width: `${value}%` }} /></div>
-    </div>
-  );
-}
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="rounded-lg border bg-card p-5"><h3 className="mb-2 font-semibold">{title}</h3>{children}</div>;
-}
-function Chips({ items, tone, empty }: { items: string[]; tone: "ok" | "gap"; empty: string }) {
-  if (!items.length) return <p className="text-sm text-muted-foreground">{empty}</p>;
-  return <div className="flex flex-wrap gap-2">{items.map((s) => <span key={s} className={`rounded-full px-2.5 py-1 text-xs ${tone === "ok" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"}`}>{s}</span>)}</div>;
 }

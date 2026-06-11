@@ -26,7 +26,7 @@ export function DownloadOriginal({ resumeId }: { resumeId: string }) {
       <button
         onClick={download}
         disabled={busy}
-        className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+        className="btn-outline btn-sm"
       >
         {busy ? "Preparing…" : "↓ Download original"}
       </button>

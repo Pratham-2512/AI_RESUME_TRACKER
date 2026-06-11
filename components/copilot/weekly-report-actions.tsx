@@ -19,7 +19,7 @@ export function SaveWeeklyReport() {
           catch (e) { setMsg(e instanceof Error ? e.message : "Failed"); }
         })}
         disabled={pending}
-        className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+        className="btn-outline btn-sm"
       >
         {pending ? "Saving…" : "💾 Save this week’s report"}
       </button>

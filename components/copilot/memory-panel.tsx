@@ -58,13 +58,13 @@ export function MemoryPanel({ memory }: { memory: Memory }) {
         <textarea
           rows={2} value={goal} onChange={(e) => setGoal(e.target.value)}
           placeholder="e.g. Become a senior AI engineer at a product company within 12 months"
-          className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"
+          className="mt-1 field"
         />
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="rounded-md border bg-background px-2 py-1.5 text-sm">
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="field w-auto px-2 py-1.5">
             {ROLES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select>
-          <button onClick={saveGoal} disabled={pending} className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground disabled:opacity-50">
+          <button onClick={saveGoal} disabled={pending} className="btn-primary btn-sm">
             {pending ? "Saving…" : "Save memory"}
           </button>
           {msg && <span className="text-xs text-muted-foreground">{msg}</span>}
@@ -75,13 +75,13 @@ export function MemoryPanel({ memory }: { memory: Memory }) {
       <div className="border-t pt-3">
         <label className="text-xs font-medium text-muted-foreground">Log learning progress</label>
         <div className="mt-1 flex flex-wrap gap-2">
-          <input value={skill} onChange={(e) => setSkill(e.target.value)} placeholder="Skill (e.g. AWS)" className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm" />
-          <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="rounded-md border bg-background px-2 py-1.5 text-sm">
+          <input value={skill} onChange={(e) => setSkill(e.target.value)} placeholder="Skill (e.g. AWS)" className="field flex-1" />
+          <select value={status} onChange={(e) => setStatus(e.target.value as typeof status)} className="field w-auto px-2 py-1.5">
             <option value="started">Started</option>
             <option value="in_progress">In progress</option>
             <option value="completed">Completed</option>
           </select>
-          <button onClick={logSkill} disabled={pending} className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50">Log</button>
+          <button onClick={logSkill} disabled={pending} className="btn-outline btn-sm">Log</button>
         </div>
       </div>
 

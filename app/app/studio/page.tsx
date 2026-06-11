@@ -1,5 +1,6 @@
 import { createDb } from "@/lib/supabase/db";
 import { ApplicationStudio } from "@/components/studio/application-studio";
+import { PageHeader } from "@/components/shared/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -17,14 +18,12 @@ export default async function ApplicationStudioPage() {
   } catch { /* graceful — studio still works with paste-in JD */ }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold">Application Studio</h1>
-      <p className="mt-1 text-muted-foreground">
-        One pipeline: pick a job → analyze the JD → tailor your résumé → generate a cover letter → apply &amp; track.
-      </p>
-      <div className="mt-6">
-        <ApplicationStudio resumes={resumes} opportunities={opportunities} />
-      </div>
+    <div className="animate-fade-up space-y-6">
+      <PageHeader
+        title="Application Studio"
+        desc="One pipeline: pick a job, analyze the JD, tailor your résumé, generate a cover letter, then apply & track."
+      />
+      <ApplicationStudio resumes={resumes} opportunities={opportunities} />
     </div>
   );
 }

@@ -59,7 +59,7 @@ export function CoachWorkspace({
         desc={`Coverage for ${gap.targetRoleLabel}: ${gap.coverage}%`}
         right={
           <select value={role} onChange={(e) => changeRole(e.target.value)} disabled={busy}
-            className="rounded-md border bg-background px-2.5 py-1.5 text-xs">
+            className="field w-auto px-2.5 py-1.5 text-xs">
             {roleOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         }
@@ -108,7 +108,7 @@ export function CoachWorkspace({
         desc={`12-week plan for ${roadmap.targetRoleLabel}`}
         right={
           <button onClick={saveRoadmap} disabled={saving}
-            className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50">
+            className="btn-outline btn-sm">
             {saving ? "Saving…" : saved ? "Saved ✓" : "Save roadmap"}
           </button>
         }

@@ -13,10 +13,10 @@ export function BarChart({ data, suffix = "", emptyLabel = "No data yet." }: { d
   return (
     <div className="flex items-end gap-2" style={{ height: 140 }}>
       {data.map((d, i) => (
-        <div key={i} className="flex flex-1 flex-col items-center justify-end gap-1">
-          <span className="text-[10px] tabular-nums text-muted-foreground">{d.value || ""}</span>
-          <div className="w-full rounded-t bg-primary/80 transition-all hover:bg-primary"
-            style={{ height: `${Math.max(2, (d.value / max) * 100)}%` }} title={`${d.label}: ${d.value}${suffix}`} />
+        <div key={i} className="group flex flex-1 flex-col items-center justify-end gap-1">
+          <span className="text-[10px] tabular-nums text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">{d.value || ""}</span>
+          <div className="w-full rounded-md bg-primary/70 transition-all duration-300 group-hover:bg-primary"
+            style={{ height: `${Math.max(3, (d.value / max) * 100)}%` }} title={`${d.label}: ${d.value}${suffix}`} />
           <span className="w-full truncate text-center text-[10px] text-muted-foreground">{d.label}</span>
         </div>
       ))}
@@ -46,7 +46,13 @@ export function LineChart({ data, min = 0, max, suffix = "", emptyLabel = "No da
         <span className="text-sm font-semibold tabular-nums">{last.value}{suffix}</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="mt-2 h-24 w-full">
-        <path d={area} className="fill-primary/10" />
+        <defs>
+          <linearGradient id="lc-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        <path d={area} fill="url(#lc-fill)" />
         <path d={path} fill="none" className="stroke-primary" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         {pts.map((p, i) => <circle key={i} cx={p[0]} cy={p[1]} r={1.4} className="fill-primary" vectorEffect="non-scaling-stroke" />)}
       </svg>
@@ -59,12 +65,12 @@ export function FunnelChart({ data }: { data: { stage: string; count: number }[]
   const max = Math.max(1, ...data.map((d) => d.count));
   if (!data.some((d) => d.count > 0)) return <Empty>No applications tracked yet.</Empty>;
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {data.map((d) => (
         <div key={d.stage}>
-          <div className="flex justify-between text-sm"><span>{d.stage}</span><span className="tabular-nums text-muted-foreground">{d.count}</span></div>
-          <div className="mt-1 h-3 rounded bg-muted">
-            <div className="flex h-3 items-center justify-end rounded bg-primary px-1.5 text-[9px] font-medium text-primary-foreground"
+          <div className="flex justify-between text-sm"><span className="font-medium">{d.stage}</span><span className="tabular-nums text-xs text-muted-foreground">{d.count}</span></div>
+          <div className="mt-1.5 h-2.5 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-gradient-to-r from-primary to-primary/70 transition-all duration-700"
               style={{ width: `${Math.max(4, (d.count / max) * 100)}%` }} />
           </div>
         </div>
