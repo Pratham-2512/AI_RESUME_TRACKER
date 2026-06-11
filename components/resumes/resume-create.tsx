@@ -9,9 +9,9 @@ const TARGETS = [
   ["software_developer", "Software Developer"], ["ml_engineer", "ML Engineer"], ["generic", "Generic"],
 ] as const;
 
-const ACCEPT = ".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain";
+const ACCEPT = ".pdf,.doc,.docx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain";
 const MAX_MB = 10;
-const ALLOWED = ["pdf", "docx", "txt"];
+const ALLOWED = ["pdf", "doc", "docx", "txt"];
 
 type Upload = {
   fileName: string;
@@ -53,7 +53,7 @@ export function ResumeCreate() {
     // Client-side pre-validation (server re-validates authoritatively)
     const ext = extOf(file.name);
     if (!ALLOWED.includes(ext)) {
-      setError(`Unsupported format${ext ? ` ".${ext}"` : ""}. Use PDF, DOCX, or TXT.`);
+      setError(`Unsupported format${ext ? ` ".${ext}"` : ""}. Use PDF, DOC, DOCX, or TXT.`);
       return;
     }
     if (file.size > MAX_MB * 1024 * 1024) {
@@ -161,7 +161,7 @@ export function ResumeCreate() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
                 </svg>
                 <p className="mt-3 text-base font-semibold">Drop résumé here</p>
-                <p className="mt-1 text-xs font-medium tracking-wide text-muted-foreground">PDF • DOCX • TXT</p>
+                <p className="mt-1 text-xs font-medium tracking-wide text-muted-foreground">PDF • DOC • DOCX • TXT</p>
                 <p className="mt-1 text-xs text-muted-foreground">or click to upload &middot; max {MAX_MB} MB</p>
               </>
             )}

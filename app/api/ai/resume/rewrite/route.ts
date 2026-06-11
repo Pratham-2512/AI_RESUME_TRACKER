@@ -5,9 +5,12 @@ import { logAiUsage } from "@/lib/ai/usage";
 import { FEATURE_CONFIG } from "@/lib/ai/models";
 import { REWRITE_SYSTEM, rewriteSchema, rewriteUser } from "@/lib/ai/prompts/resume";
 import { resumeTargetSchema } from "@/lib/domain/validation";
+import { improveResumeText } from "@/lib/domain/resumeEngine";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
+
+const hasAiKey = () => !!process.env.ANTHROPIC_API_KEY?.trim();
 
 export async function POST(req: Request) {
   const db = createDb();
@@ -19,35 +22,47 @@ export async function POST(req: Request) {
     return NextResponse.json({ data: null, error: { code: "NOT_FOUND", message: "Resume text not found" } }, { status: 404 });
   }
 
-  const { data: analysis } = await db
-    .from("resume_analyses").select("weak_sections,missing_keywords,suggestions")
-    .eq("resume_id", body.resumeId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  // Deterministic-first rewrite: ALWAYS produces an improved version + after_score.
+  const det = improveResumeText(resume.parsed_text, target);
+  let result: { content_md: string; before_score?: number; after_score: number; changes?: string[] } = det;
+  let model = "deterministic-v1";
 
-  const cfg = FEATURE_CONFIG.resume_rewrite;
-  const t0 = Date.now();
+  if (hasAiKey()) {
+    const { data: analysis } = await db
+      .from("resume_analyses").select("weak_sections,missing_keywords,suggestions")
+      .eq("resume_id", body.resumeId).order("created_at", { ascending: false }).limit(1).maybeSingle();
+    const cfg = FEATURE_CONFIG.resume_rewrite;
+    const t0 = Date.now();
+    try {
+      const { data: ai, tokensIn, tokensOut } = await runJson({
+        model: cfg.model, effort: cfg.effort, maxTokens: 8000,
+        system: REWRITE_SYSTEM, schema: rewriteSchema,
+        user: rewriteUser({ resumeText: resume.parsed_text, target, analysis: analysis ?? undefined }),
+      });
+      await logAiUsage({ feature: "resume_rewrite", model: cfg.model, tokensIn, tokensOut, latencyMs: Date.now() - t0 });
+      result = ai;
+      model = cfg.model;
+    } catch (e) {
+      console.error("[rewrite] AI failed, using deterministic:", e);
+    }
+  }
+
+  let id: string | null = null;
+  let versionNo = 1;
   try {
-    const { data: result, tokensIn, tokensOut } = await runJson({
-      model: cfg.model, effort: cfg.effort, maxTokens: 8000,
-      system: REWRITE_SYSTEM, schema: rewriteSchema,
-      user: rewriteUser({ resumeText: resume.parsed_text, target, analysis: analysis ?? undefined }),
-    });
-
-    await logAiUsage({ feature: "resume_rewrite", model: cfg.model, tokensIn, tokensOut, latencyMs: Date.now() - t0 });
-
     const { data: last } = await db
       .from("resume_versions").select("version_no").eq("resume_id", body.resumeId)
       .order("version_no", { ascending: false }).limit(1).maybeSingle();
-    const versionNo = (last?.version_no ?? 0) + 1;
-
-    const { data: saved, error } = await db.from("resume_versions").insert({
+    versionNo = (last?.version_no ?? 0) + 1;
+    const { data: saved } = await db.from("resume_versions").insert({
       resume_id: body.resumeId, version_no: versionNo, target,
-      content_md: result.content_md, ats_score: result.after_score, created_by_ai: true,
+      content_md: result.content_md, ats_score: result.after_score, created_by_ai: model !== "deterministic-v1",
     }).select("id,version_no").single();
-    if (error) throw new Error(error.message);
-
-    return NextResponse.json({ data: { id: saved.id, version_no: saved.version_no, ...result }, error: null });
+    id = saved?.id ?? null;
+    versionNo = saved?.version_no ?? versionNo;
   } catch (e) {
-    console.error("[rewrite]", e);
-    return NextResponse.json({ data: null, error: { code: "AI_ERROR", message: "Rewrite failed" } }, { status: 500 });
+    console.error("[rewrite] persist failed (non-fatal):", e);
   }
+
+  return NextResponse.json({ data: { id, version_no: versionNo, ...result, model }, error: null });
 }

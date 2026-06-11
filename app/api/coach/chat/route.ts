@@ -35,6 +35,22 @@ function coachReply(message: string, ctx: Awaited<ReturnType<typeof getCoachDash
   }
   const goalPrefix = memory.careerGoal ? `Toward your goal (“${memory.careerGoal.slice(0, 80)}”): ` : "";
 
+  // Personalized daily action plan — grounded in readiness, gaps, memory.
+  if (has("what should i do today", "do today", "today's plan", "todays plan", "daily plan", "action plan", "what now", "where do i start", "what next")) {
+    const r = ctx.readiness;
+    const plan: string[] = [];
+    if (r.resume < 75) plan.push(`1) Improve your résumé from ${r.resume} → ${Math.min(100, r.resume + 10)} (add metrics to 3 bullets, ~30 min)`);
+    if (top.length) {
+      const learning = memory.learning.find((l) => l.status !== "completed");
+      plan.push(`${plan.length + 1}) ${learning ? `Continue ${learning.skill} (${learning.status.replace("_", " ")})` : `Start ${top[0]}`} — one focused session (~60 min)`);
+    }
+    if (r.applications < 70) plan.push(`${plan.length + 1}) Apply to 3 high-match jobs via the Application Studio (~30 min)`);
+    if (r.interview < 70) plan.push(`${plan.length + 1}) One interview practice round (~15 min)`);
+    if (!plan.length) plan.push("1) You're in great shape — apply to 2 stretch roles and do one mock interview to stay sharp.");
+    const intro = memory.careerGoal ? `Toward “${memory.careerGoal.slice(0, 70)}” — here's today:` : "Here's your plan for today:";
+    return `${intro} ${plan.join(" · ")}`;
+  }
+
   if (has("skill", "gap", "learn what", "what should i learn", "missing")) {
     if (!top.length) return `For ${ctx.targetRoleLabel}, you already cover the core role skills (${ctx.gap.coverage}% coverage). Focus on depth and a portfolio project rather than new skills.`;
     return `For ${ctx.targetRoleLabel} you're at ${ctx.gap.coverage}% skill coverage. Highest-priority gaps: ${top.join(", ")}. Start with ${top[0]} — ${ctx.gap.missing[0].learn}`;

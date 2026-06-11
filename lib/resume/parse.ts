@@ -1,12 +1,13 @@
 import "server-only";
 
 /**
- * Resume file parsing + validation. Server-only (uses Node Buffer + pdf-parse/mammoth).
- * Supported: PDF, DOCX, TXT. Everything else is rejected with a friendly message.
+ * Resume file parsing + validation. Server-only (uses Node Buffer + parsers).
+ * Supported: PDF (pdf-parse), DOCX (mammoth), DOC (word-extractor), TXT.
+ * Everything else is rejected with a friendly message.
  */
 
 export const MAX_RESUME_BYTES = 10 * 1024 * 1024; // 10 MB
-export const ALLOWED_EXT = ["pdf", "docx", "txt"] as const;
+export const ALLOWED_EXT = ["pdf", "docx", "doc", "txt"] as const;
 export type AllowedExt = (typeof ALLOWED_EXT)[number];
 
 export class ResumeParseError extends Error {
@@ -27,6 +28,7 @@ function extensionOf(name: string): string {
 export function contentTypeForExt(ext: string): string {
   if (ext === "pdf") return "application/pdf";
   if (ext === "docx") return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  if (ext === "doc") return "application/msword";
   return "text/plain";
 }
 
@@ -49,14 +51,11 @@ export function validateFile(name: string, size: number, mime: string): AllowedE
     throw new ResumeParseError("Images aren't supported. Upload a PDF, DOCX, or TXT.", "IMAGE");
   }
   if (ext === "zip" || type === "application/zip" || type === "application/x-zip-compressed") {
-    throw new ResumeParseError("ZIP archives aren't supported. Upload a single PDF, DOCX, or TXT.", "ZIP");
-  }
-  if (ext === "doc" || type === "application/msword") {
-    throw new ResumeParseError("Legacy .doc isn't supported — save it as .docx, PDF, or TXT.", "LEGACY_DOC");
+    throw new ResumeParseError("ZIP archives aren't supported. Upload a single PDF, DOC, DOCX, or TXT.", "ZIP");
   }
   if (!(ALLOWED_EXT as readonly string[]).includes(ext)) {
     throw new ResumeParseError(
-      `Unsupported format${ext ? ` ".${ext}"` : ""}. Supported formats: PDF, DOCX, TXT.`,
+      `Unsupported format${ext ? ` ".${ext}"` : ""}. Supported formats: PDF, DOC, DOCX, TXT.`,
       "UNSUPPORTED",
     );
   }
@@ -84,6 +83,11 @@ export async function parseResume(buf: Buffer, ext: AllowedExt): Promise<ParseRe
       const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer: buf });
       text = result.value ?? "";
+    } else if (ext === "doc") {
+      const { default: WordExtractor } = await import("word-extractor");
+      const extractor = new WordExtractor();
+      const doc = await extractor.extract(buf);
+      text = doc.getBody() ?? "";
     } else {
       // pdf-parse v2: class API
       const { PDFParse } = await import("pdf-parse");

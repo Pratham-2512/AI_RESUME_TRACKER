@@ -1,13 +1,19 @@
 import Link from "next/link";
 import { getCommandCenter, type CommandCenter } from "@/lib/domain/commandCenter";
+import { getCareerHealth, type ActionItem } from "@/lib/domain/careerHealth";
 
 export const dynamic = "force-dynamic";
 
+const EFFORT_MIN: Record<ActionItem["effort"], string> = { low: "15 min", medium: "30 min", high: "60 min" };
+
 export default async function CommandCenterPage() {
   let cc: CommandCenter | null = null;
+  let mission: ActionItem[] = [];
   let dbError: string | null = null;
   try {
-    cc = await getCommandCenter();
+    const [center, health] = await Promise.all([getCommandCenter(), getCareerHealth()]);
+    cc = center;
+    mission = health.actions.slice(0, 4);
   } catch (e) {
     dbError = e instanceof Error ? e.message : "Database not reachable";
   }
@@ -36,6 +42,30 @@ export default async function CommandCenterPage() {
         <Stat label="Interview Rate" value={`${cc?.interviewRate ?? 0}%`} />
         <Stat label="Offer Rate" value={`${cc?.offerRate ?? 0}%`} />
       </div>
+
+      {/* TODAY'S MISSION — action over passivity */}
+      {mission.length > 0 && (
+        <section className="mt-6 rounded-xl border-2 border-primary/30 bg-card p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold tracking-wide">🎯 TODAY&apos;S MISSION</h2>
+            <span className="text-xs text-muted-foreground">{mission.length} actions · est. {mission.reduce((a, m) => a + (m.effort === "low" ? 15 : m.effort === "medium" ? 30 : 60), 0)} min total</span>
+          </div>
+          <ol className="mt-3 grid gap-2 sm:grid-cols-2">
+            {mission.map((m, i) => (
+              <li key={i}>
+                <Link href={m.href} className="flex items-start gap-3 rounded-lg border bg-background p-3 transition hover:border-primary/50 hover:bg-muted/40">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">{i + 1}</span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium">{m.title}</span>
+                    <span className="block text-xs text-muted-foreground">{m.reason}</span>
+                    <span className="mt-1 inline-block rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">⏱ {EFFORT_MIN[m.effort]}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Left column — action */}

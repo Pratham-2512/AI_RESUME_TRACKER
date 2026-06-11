@@ -9,6 +9,8 @@ type Analysis = {
   missing_skills: string[];
   weak_sections: { section: string; issue: string; suggestion: string }[];
   suggestions: { priority: string; area: string; suggestion: string }[];
+  strengths?: string[];
+  weaknesses?: string[];
 };
 type Version = { id: string; version_no: number; ats_score: number | null; content_md: string | null };
 
@@ -24,6 +26,7 @@ export function ResumeWorkspace({
   const [busy, setBusy] = useState<null | "analyze" | "rewrite">(null);
   const [error, setError] = useState<string | null>(null);
   const latestAfter = versions[0]?.ats_score ?? null;
+  const improvement = analysis?.before_score != null && latestAfter != null ? latestAfter - analysis.before_score : null;
 
   async function analyze() {
     setBusy("analyze"); setError(null);
@@ -56,9 +59,17 @@ export function ResumeWorkspace({
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-6">
-        <ScorePill label="Before" value={analysis?.before_score ?? null} />
+        <ScorePill label="ATS Before" value={analysis?.before_score ?? null} />
         <span className="text-2xl text-muted-foreground">→</span>
-        <ScorePill label="After" value={latestAfter} accent />
+        <ScorePill label="ATS After" value={latestAfter} accent />
+        {improvement != null && (
+          <div className="text-center">
+            <div className={`flex h-20 items-center justify-center rounded-lg px-4 text-xl font-bold ${improvement >= 0 ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-destructive/10 text-destructive"}`}>
+              {improvement >= 0 ? "+" : ""}{improvement}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">Improvement</p>
+          </div>
+        )}
         <div className="ml-auto flex gap-2">
           <button onClick={analyze} disabled={busy !== null} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
             {busy === "analyze" ? "Analyzing…" : analysis ? "Re-analyze" : "Analyze ATS"}
@@ -86,6 +97,22 @@ export function ResumeWorkspace({
           </div>
           <div className="rounded-lg border bg-card p-5">
             <h3 className="font-semibold">Gaps</h3>
+            {(analysis.strengths?.length ?? 0) > 0 && (
+              <div className="mt-2">
+                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Strengths</p>
+                <ul className="mt-0.5 space-y-0.5">
+                  {analysis.strengths!.map((s, i) => <li key={i} className="text-sm text-muted-foreground">✓ {s}</li>)}
+                </ul>
+              </div>
+            )}
+            {(analysis.weaknesses?.length ?? 0) > 0 && (
+              <div className="mt-2">
+                <p className="text-xs font-semibold text-destructive">Weaknesses</p>
+                <ul className="mt-0.5 space-y-0.5">
+                  {analysis.weaknesses!.map((s, i) => <li key={i} className="text-sm text-muted-foreground">• {s}</li>)}
+                </ul>
+              </div>
+            )}
             {analysis.missing_skills.length > 0 && (
               <p className="mt-2 text-sm"><span className="text-muted-foreground">Missing skills: </span>{analysis.missing_skills.join(", ")}</p>
             )}

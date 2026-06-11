@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, Target, FileText, Wand2, ClipboardList, MessageSquare, User, Mail,
-  MessagesSquare, GraduationCap, BarChart3,
+  MessagesSquare, GraduationCap, BarChart3, Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 // Skills folds into Coach; LinkedIn folds into Documents.
 const NAV = [
   ["/app/dashboard", "Command Center", LayoutDashboard],
+  ["/app/studio", "Application Studio", Rocket],
   ["/app/opportunities", "Opportunities", Target],
   ["/app/tailor", "Tailoring Studio", Wand2],
   ["/app/resumes", "Résumé Studio", FileText],
