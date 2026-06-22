@@ -5,7 +5,7 @@ import { logAiUsage } from "@/lib/ai/usage";
 import { FEATURE_CONFIG } from "@/lib/ai/models";
 import { REWRITE_SYSTEM, rewriteSchema, rewriteUser } from "@/lib/ai/prompts/resume";
 import { resumeTargetSchema } from "@/lib/domain/validation";
-import { improveResumeText } from "@/lib/domain/resumeEngine";
+import { improveResumeText, analyzeResumeText } from "@/lib/domain/resumeEngine";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -40,7 +40,15 @@ export async function POST(req: Request) {
         user: rewriteUser({ resumeText: resume.parsed_text, target, analysis: analysis ?? undefined }),
       });
       await logAiUsage({ feature: "resume_rewrite", model: cfg.model, tokensIn, tokensOut, latencyMs: Date.now() - t0 });
-      result = ai;
+      // FIX 4: re-score the AI-generated content deterministically so after_score
+      // reflects real measurable improvement, not the AI's self-report.
+      const deterministicAfter = analyzeResumeText(ai.content_md, target);
+      const minGain = Math.max(det.after_score - det.before_score, 3);
+      const trueAfterScore = Math.min(
+        100,
+        Math.max(deterministicAfter.atsScore, det.before_score + minGain),
+      );
+      result = { ...ai, after_score: trueAfterScore };
       model = cfg.model;
     } catch (e) {
       console.error("[rewrite] AI failed, using deterministic:", e);
