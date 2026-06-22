@@ -68,7 +68,7 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
         {/* Re-run ATS Analysis */}
         <ResumeInspector resumeId={id} />
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <ResumeWorkspace resumeId={id} initialAnalysis={(analysis as any) ?? null} initialVersions={(versions as any) ?? []} />
+        <ResumeWorkspace resumeId={id} initialAnalysis={(analysis as any) ?? null} initialVersions={(versions as any) ?? []} target={resume.target} />
       </div>
 
       {/* LinkedIn Post Automation */}

@@ -15,11 +15,12 @@ type Analysis = {
 type Version = { id: string; version_no: number; ats_score: number | null; content_md: string | null };
 
 export function ResumeWorkspace({
-  resumeId, initialAnalysis, initialVersions,
+  resumeId, initialAnalysis, initialVersions, target,
 }: {
   resumeId: string;
   initialAnalysis: Analysis | null;
   initialVersions: Version[];
+  target?: string | null;
 }) {
   const [analysis, setAnalysis] = useState<Analysis | null>(initialAnalysis);
   const [versions, setVersions] = useState<Version[]>(initialVersions);
@@ -47,7 +48,7 @@ export function ResumeWorkspace({
     try {
       const r = await fetch("/api/ai/resume/rewrite", {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ resumeId, target: "ats" }),
+        body: JSON.stringify({ resumeId, target: target ?? "ats" }),
       });
       const j = await r.json();
       if (j.error) throw new Error(j.error.message);
