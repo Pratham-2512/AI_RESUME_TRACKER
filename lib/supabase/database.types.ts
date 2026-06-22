@@ -26,6 +26,7 @@ type ProfileRow = {
   location: string | null; headline: string | null; summary: string | null;
   career_goals: string | null; target_roles: string[] | null; years_experience: number | null;
   profile_version: number; embedding: string | null; singleton: boolean;
+  linkedin_access_token: string | null; linkedin_token_expiry: string | null; linkedin_sub: string | null;
   created_at: string; updated_at: string;
 };
 type EducationRow = Ts & { id: string; school: string; degree: string | null; field: string | null; grade: string | null; start_date: string | null; end_date: string | null; is_current: boolean | null; description: string | null; sort_order: number | null };

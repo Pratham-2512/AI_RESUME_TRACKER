@@ -4,6 +4,7 @@ import { createDb } from "@/lib/supabase/db";
 import { ResumeWorkspace } from "@/components/resumes/resume-workspace";
 import { ResumeInspector } from "@/components/resumes/resume-inspector";
 import { DownloadOriginal } from "@/components/resumes/download-original";
+import { LinkedInPostPanel } from "@/components/linkedin/linkedin-post-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -70,8 +71,13 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
         <ResumeWorkspace resumeId={id} initialAnalysis={(analysis as any) ?? null} initialVersions={(versions as any) ?? []} />
       </div>
 
+      {/* LinkedIn Post Automation */}
+      <div className="mt-8">
+        <LinkedInPostPanel resumeId={id} />
+      </div>
+
       {/* View Extracted Text */}
-      <details className="mt-8 card p-4">
+      <details className="mt-6 card p-4">
         <summary className="cursor-pointer text-sm font-medium">View extracted text</summary>
         <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{resume.parsed_text}</pre>
       </details>
