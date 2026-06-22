@@ -331,7 +331,11 @@ const VERB_FOR_OPENER: Record<string, string> = {
 
 export type ResumeRewrite = { content_md: string; before_score: number; after_score: number; changes: string[] };
 
-export function improveResumeText(text: string, target: ResumeTarget = "generic"): ResumeRewrite {
+export function improveResumeText(
+  text: string,
+  target: ResumeTarget = "generic",
+  extraKeywords: string[] = [],
+): ResumeRewrite {
   const before = analyzeResumeText(text, target);
   const changes: string[] = [];
 
@@ -352,9 +356,15 @@ export function improveResumeText(text: string, target: ResumeTarget = "generic"
   });
   let content = improved.join("\n");
 
-  // Surface missing keywords
-  if (before.missingKeywords.length) {
-    const add = before.missingKeywords.join(", ");
+  // Merge engine missing keywords + extra JD keywords
+  const contentLower = content.toLowerCase();
+  const allMissing = [
+    ...before.missingKeywords,
+    ...extraKeywords.filter((k) => !contentLower.includes(k.toLowerCase())),
+  ].filter((k, i, a) => a.indexOf(k) === i); // dedup
+
+  if (allMissing.length) {
+    const add = allMissing.join(", ");
     content += `\n\n${/\bskills\b/i.test(content) ? "Additional Skills" : "Skills"}: ${add}`;
     changes.push(`Added missing keywords: ${add}`);
   }

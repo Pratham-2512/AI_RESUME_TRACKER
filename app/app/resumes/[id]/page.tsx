@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createDb } from "@/lib/supabase/db";
-import { ResumeWorkspace } from "@/components/resumes/resume-workspace";
 import { ResumeInspector } from "@/components/resumes/resume-inspector";
 import { DownloadOriginal } from "@/components/resumes/download-original";
+import { JobMatchAnalyzer } from "@/components/resumes/job-match-analyzer";
+import { ResumeVersions } from "@/components/resumes/resume-versions";
 import { LinkedInPostPanel } from "@/components/linkedin/linkedin-post-panel";
 
 export const dynamic = "force-dynamic";
@@ -11,13 +12,11 @@ export const dynamic = "force-dynamic";
 export default async function ResumeDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // Fetch inside try/catch so a missing-env / unreachable-DB error degrades
-  // gracefully instead of producing an HTTP 500. notFound() is kept OUTSIDE the
-  // try because it works by throwing and must be allowed to propagate.
   let resume: { id: string; label: string | null; target: string | null; parsed_text: string | null; storage_path: string | null } | null = null;
-  let analysis: unknown = null;
-  let versions: unknown[] = [];
+  let versions: { id: string; version_no: number; ats_score: number | null; content_md: string | null }[] = [];
+  let atsScore: number | null = null;
   let dbError: string | null = null;
+
   try {
     const db = createDb();
     const r = await db.from("resumes").select("id,label,target,parsed_text,storage_path").eq("id", id).single();
@@ -25,13 +24,13 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
     if (resume) {
       const [a, v] = await Promise.all([
         db.from("resume_analyses")
-          .select("before_score,ats_breakdown,missing_keywords,missing_skills,weak_sections,suggestions")
+          .select("before_score")
           .eq("resume_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         db.from("resume_versions")
           .select("id,version_no,ats_score,content_md")
           .eq("resume_id", id).order("version_no", { ascending: false }),
       ]);
-      analysis = a.data;
+      atsScore = a.data?.before_score ?? null;
       versions = v.data ?? [];
     }
   } catch (e) {
@@ -40,10 +39,10 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
 
   if (dbError) {
     return (
-      <div className="animate-fade-up">
-        <Link href="/app/resumes" className="text-sm text-muted-foreground transition-colors hover:text-foreground">← Résumés</Link>
-        <div className="mt-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          Database not ready: {dbError}. Apply the schema (see SUPABASE_SETUP.md).
+      <div className="animate-fade-up space-y-3">
+        <Link href="/app/resumes" className="text-sm text-muted-foreground hover:text-foreground">← Résumés</Link>
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Database error: {dbError}
         </div>
       </div>
     );
@@ -51,35 +50,60 @@ export default async function ResumeDetail({ params }: { params: Promise<{ id: s
   if (!resume) notFound();
 
   return (
-    <div className="animate-fade-up">
+    <div className="animate-fade-up space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <Link href="/app/resumes" className="text-sm text-muted-foreground transition-colors hover:text-foreground">← Résumés</Link>
+        <Link href="/app/resumes" className="text-sm text-muted-foreground hover:text-foreground">← Résumés</Link>
         <div className="flex items-center gap-2">
           {resume.storage_path && <DownloadOriginal resumeId={id} />}
-          <Link href={`/print/resume/${id}`} target="_blank" className="btn-outline btn-sm">
-            Export PDF
-          </Link>
+          <Link href={`/print/resume/${id}`} target="_blank" className="btn-outline btn-sm">Export PDF</Link>
         </div>
       </div>
-      <h1 className="mt-3 text-2xl font-bold tracking-tight sm:text-3xl">{resume.label ?? "Résumé"}</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Target: {resume.target}</p>
 
-      <div className="mt-6 space-y-6">
-        {/* Re-run ATS Analysis */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">{resume.label ?? "Résumé"}</h1>
+        {atsScore != null && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            ATS Score: <span className={`font-bold ${atsScore >= 80 ? "text-emerald-600 dark:text-emerald-400" : atsScore >= 60 ? "text-amber-600" : "text-destructive"}`}>{atsScore}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Step 1 — ATS Analysis */}
+      <section className="card p-5 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">1</span>
+          <h2 className="text-sm font-semibold">ATS Score Analysis</h2>
+        </div>
         <ResumeInspector resumeId={id} />
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <ResumeWorkspace resumeId={id} initialAnalysis={(analysis as any) ?? null} initialVersions={(versions as any) ?? []} target={resume.target} />
-      </div>
+      </section>
 
-      {/* LinkedIn Post Automation */}
-      <div className="mt-8">
+      {/* Steps 2–4 — JD Match + Optimize */}
+      <section className="card p-5">
+        <JobMatchAnalyzer resumeId={id} />
+      </section>
+
+      {/* Optimized versions */}
+      {versions.length > 0 && (
+        <section className="card p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">5</span>
+            <h2 className="text-sm font-semibold">Optimized Versions</h2>
+          </div>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <ResumeVersions versions={versions as any} />
+        </section>
+      )}
+
+      {/* LinkedIn Post */}
+      <section>
         <LinkedInPostPanel resumeId={id} />
-      </div>
+      </section>
 
-      {/* View Extracted Text */}
-      <details className="mt-6 card p-4">
-        <summary className="cursor-pointer text-sm font-medium">View extracted text</summary>
-        <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-sm text-muted-foreground">{resume.parsed_text}</pre>
+      {/* Raw extracted text (collapsed) */}
+      <details className="card p-4">
+        <summary className="cursor-pointer text-sm font-medium text-muted-foreground">View extracted text</summary>
+        <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-xs text-muted-foreground">{resume.parsed_text}</pre>
       </details>
     </div>
   );

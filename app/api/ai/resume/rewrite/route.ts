@@ -14,8 +14,9 @@ const hasAiKey = () => !!process.env.ANTHROPIC_API_KEY?.trim();
 
 export async function POST(req: Request) {
   const db = createDb();
-  const body = (await req.json()) as { resumeId: string; target?: string };
+  const body = (await req.json()) as { resumeId: string; target?: string; jdKeywords?: string[] };
   const target = resumeTargetSchema.parse(body.target ?? "ats");
+  const jdKeywords: string[] = body.jdKeywords ?? [];
 
   const { data: resume } = await db.from("resumes").select("id,parsed_text").eq("id", body.resumeId).single();
   if (!resume?.parsed_text) {
@@ -23,7 +24,7 @@ export async function POST(req: Request) {
   }
 
   // Deterministic-first rewrite: ALWAYS produces an improved version + after_score.
-  const det = improveResumeText(resume.parsed_text, target);
+  const det = improveResumeText(resume.parsed_text, target, jdKeywords);
   // Re-score the deterministic content and enforce minGain even when no textual changes were made
   const detAfter = analyzeResumeText(det.content_md, target);
   const detMinGain = Math.max(3, Math.ceil((det.changes?.length ?? 0) * 2));

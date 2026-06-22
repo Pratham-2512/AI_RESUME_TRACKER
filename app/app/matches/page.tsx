@@ -1,5 +1,1 @@
-import { redirect } from "next/navigation";
-// Matches merged into Opportunities.
-export default function Page() {
-  redirect("/app/opportunities");
-}
+import { redirect } from 'next/navigation'; export default function Page() { redirect('/app/resumes'); }

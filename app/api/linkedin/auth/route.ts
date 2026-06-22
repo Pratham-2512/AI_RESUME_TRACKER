@@ -28,7 +28,7 @@ export async function GET() {
     client_id: clientId,
     redirect_uri: redirectUri,
     state,
-    scope: "openid email w_member_social",
+    scope: "openid email w_member_social r_ads_reporting",
   });
 
   return NextResponse.redirect(
