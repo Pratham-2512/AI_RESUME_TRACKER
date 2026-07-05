@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "apply": "node scripts/apply-assist.mjs",
+    "ingest": "node scripts/run-ingest.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",

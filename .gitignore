@@ -17,3 +17,7 @@ playwright/.cache/
 tmp/
 
 .vercel
+
+# Apply assist (personal data)
+scripts/.browser-profile/
+scripts/apply-assist.config.json

@@ -89,6 +89,34 @@ OPENAI_API_KEY=                   # embeddings only, server only
 
 ---
 
+## Job ingestion (auto-discovery)
+
+Jobs flow in automatically from public, ToS-friendly APIs — no LinkedIn/Naukri scraping.
+
+- **Sources** (`job_sources` table, managed on `/app/jobs`): Greenhouse board tokens
+  (e.g. `anthropic`), Lever company slugs, Remotive search queries (e.g. `ai engineer`).
+- **Pipeline** (`lib/jobs/`): fetch → normalize → dedup on `(source, external_id)` →
+  deterministic match score against your profile skills → insert into `opportunities`
+  → best-effort embeddings.
+- **Triggers**: Vercel Cron nightly (`vercel.json` → `/api/jobs/ingest`, needs
+  `CRON_SECRET` env), the **Fetch new jobs** button on `/app/jobs`, or `npm run ingest`.
+- **Setup**: apply `supabase/migrations/0003_job_ingestion.sql`, add sources, fetch.
+
+## Apply Assist (semi-automated, human-in-the-loop)
+
+```bash
+npm run apply -- <opportunity-id or prefix>   # id shown on the job card
+```
+
+Opens the job's apply page in a real Chromium (persistent profile, so logins stick),
+pre-fills name/email/phone/location/links, attaches your primary resume, pastes the
+generated cover letter, and highlights the submit button. **It never auto-submits** —
+you review, answer custom questions, click Submit, then type `done` and the
+application is logged as `applied` in the pipeline. Personal links live in
+`scripts/apply-assist.config.json` (gitignored, created on first run).
+
+---
+
 ## Module → implementation index
 
 | Module | Primary tables | Primary AI feature | Doc |

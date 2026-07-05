@@ -12,6 +12,7 @@ export type AppStatus =
 export type ResumeTarget =
   | "ats" | "ai_engineer" | "data_analyst" | "software_developer" | "ml_engineer"
   | "data_scientist" | "python_developer" | "full_stack" | "generic";
+export type JobSourceKind = "greenhouse" | "lever" | "remotive";
 export type DocType =
   | "cover_letter" | "recruiter_message" | "hiring_manager_email" | "followup_email" | "thank_you_email"
   | "linkedin_headline" | "linkedin_about" | "linkedin_post" | "linkedin_project_post" | "linkedin_connect";
@@ -45,7 +46,14 @@ type OpportunityRow = {
   interview_prob_label: string | null; interview_prob_pct: number | null;
   matched_skills: string[] | null; missing_skills: string[] | null; strengths: string[] | null; weaknesses: string[] | null;
   strategy: string | null; recommended_resume: ResumeTarget | null; model: string | null;
-  status: AppStatus; embedding: string | null; created_at: string; updated_at: string;
+  status: AppStatus; embedding: string | null;
+  external_id: string | null; source_id: string | null; apply_url: string | null;
+  salary_text: string | null; posted_at: string | null; dismissed_at: string | null; starred: boolean;
+  created_at: string; updated_at: string;
+};
+type JobSourceRow = Ts & {
+  id: string; kind: JobSourceKind; board: string; label: string | null; active: boolean;
+  last_run_at: string | null; last_status: string | null; last_count: number | null;
 };
 type ApplicationRow = { id: string; opportunity_id: string | null; job_title: string | null; company: string | null; status: AppStatus; applied_at: string | null; followup_date: string | null; resume_version_id: string | null; notes: string | null; source: string | null; created_at: string; updated_at: string };
 type AppEventRow = Ts & { id: string; application_id: string; from_status: AppStatus | null; to_status: AppStatus; note: string | null };
@@ -72,6 +80,7 @@ export interface Database {
       resume_versions: T<ResumeVersionRow, { resume_id: string; version_no: number } & P<ResumeVersionRow>, P<ResumeVersionRow>>;
       resume_analyses: T<ResumeAnalysisRow, { resume_id: string } & P<ResumeAnalysisRow>, P<ResumeAnalysisRow>>;
       opportunities: T<OpportunityRow, { title: string } & P<OpportunityRow>, P<OpportunityRow>>;
+      job_sources: T<JobSourceRow, { kind: JobSourceKind; board: string } & P<JobSourceRow>, P<JobSourceRow>>;
       applications: T<ApplicationRow, { status?: AppStatus } & P<ApplicationRow>, P<ApplicationRow>>;
       application_events: T<AppEventRow, { application_id: string; to_status: AppStatus } & P<AppEventRow>, P<AppEventRow>>;
       generated_documents: T<GeneratedDocRow, { type: DocType; content: string } & P<GeneratedDocRow>, P<GeneratedDocRow>>;
