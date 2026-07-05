@@ -1,29 +1,36 @@
 import { Briefcase } from "lucide-react";
 import { createDb } from "@/lib/supabase/db";
 import { PageHeader, StatCard, InfoBanner } from "@/components/shared/ui";
-import { JobFeed, type FeedJob } from "@/components/jobs/job-feed";
+import { JobFeed, type FeedJob, type CandidateContext } from "@/components/jobs/job-feed";
 import { SourceManager, type SourceItem } from "@/components/jobs/source-manager";
+import { OWNER_ID } from "@/lib/owner";
 
 export const dynamic = "force-dynamic";
 
 export default async function JobsPage() {
   let sources: SourceItem[] = [];
   let jobs: FeedJob[] = [];
+  let candidate: CandidateContext = { years: null, targetRoles: [] };
   let dbError: string | null = null;
 
   try {
     const db = createDb();
-    const [srcRes, oppRes] = await Promise.all([
+    const [srcRes, oppRes, profileRes] = await Promise.all([
       db.from("job_sources").select("id,kind,board,label,active,last_run_at,last_status,last_count").order("created_at"),
       db.from("opportunities")
-        .select("id,title,company,location,work_mode,job_type,salary_text,url,apply_url,source,match_score,matched_skills,missing_skills,strategy,posted_at,created_at,starred")
+        .select("id,title,company,location,work_mode,job_type,salary_text,url,apply_url,source,match_score,matched_skills,missing_skills,required_skills,years_required,strategy,posted_at,created_at,starred")
         .is("dismissed_at", null)
         .order("starred", { ascending: false })
         .order("match_score", { ascending: false, nullsFirst: false })
         .order("posted_at", { ascending: false, nullsFirst: false })
         .limit(200),
+      db.from("profiles").select("years_experience,target_roles").eq("id", OWNER_ID).maybeSingle(),
     ]);
     sources = (srcRes.data ?? []) as SourceItem[];
+    candidate = {
+      years: profileRes.data?.years_experience ?? null,
+      targetRoles: profileRes.data?.target_roles ?? [],
+    };
     const opps = oppRes.data ?? [];
 
     const trackedIds = new Set<string>();
@@ -61,7 +68,7 @@ export default async function JobsPage() {
       </div>
 
       <SourceManager sources={sources} />
-      <JobFeed jobs={jobs} />
+      <JobFeed jobs={jobs} candidate={candidate} />
     </div>
   );
 }

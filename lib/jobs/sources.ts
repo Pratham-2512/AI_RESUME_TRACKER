@@ -160,7 +160,9 @@ export async function fetchSource(kind: JobSourceKind, board: string): Promise<N
   }
 }
 
-/** Canonical `opportunities.source` value for an ingested job. */
+/** Canonical `opportunities.source` value for an ingested job.
+ * Remotive job ids are global, so all Remotive searches share one key —
+ * otherwise the same job ingested via two search queries duplicates. */
 export function sourceKey(kind: JobSourceKind, board: string): string {
-  return `${kind}:${board.toLowerCase()}`;
+  return kind === "remotive" ? "remotive" : `${kind}:${board.toLowerCase()}`;
 }

@@ -24,10 +24,11 @@ export async function ingestAllSources(): Promise<IngestSummary> {
   // Candidate context, fetched once — the deterministic engine scores every new job.
   const [{ data: skills }, { data: profile }] = await Promise.all([
     db.from("skills").select("name"),
-    db.from("profiles").select("years_experience").eq("id", OWNER_ID).maybeSingle(),
+    db.from("profiles").select("years_experience,target_roles").eq("id", OWNER_ID).maybeSingle(),
   ]);
   const candidateSkills = (skills ?? []).map((s) => s.name);
   const candidateYears = profile?.years_experience ?? null;
+  const targetRoles = profile?.target_roles ?? [];
 
   const results: SourceResult[] = [];
   let totalAdded = 0;
@@ -46,7 +47,7 @@ export async function ingestAllSources(): Promise<IngestSummary> {
 
       if (toInsert.length) {
         const rows = toInsert.map((j) => {
-          const m = scoreMatch({ jobText: `${j.title}\n${j.jobText}`, candidateSkills, candidateYears });
+          const m = scoreMatch({ jobText: `${j.title}\n${j.jobText}`, candidateSkills, candidateYears, title: j.title, targetRoles });
           return {
             source: key, source_id: src.id, external_id: j.externalId,
             title: j.title.slice(0, 200), company: j.company, location: j.location,

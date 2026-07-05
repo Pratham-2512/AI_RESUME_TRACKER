@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { ChevronDown, ExternalLink, Star, X, ClipboardList } from "lucide-react";
 import { dismissOpportunity, starOpportunity, trackOpportunity } from "@/actions/jobs";
 import { Badge, Chips, Empty, scoreTone } from "@/components/shared/ui";
+import { explainMatch } from "@/lib/domain/matchExplain";
 import { cn } from "@/lib/utils";
 import type { JobType, WorkMode } from "@/lib/supabase/database.types";
 
@@ -12,9 +13,29 @@ export type FeedJob = {
   work_mode: WorkMode | null; job_type: JobType | null; salary_text: string | null;
   url: string | null; apply_url: string | null; source: string | null;
   match_score: number | null; matched_skills: string[] | null; missing_skills: string[] | null;
+  required_skills: string[] | null; years_required: number | null;
   strategy: string | null; posted_at: string | null; created_at: string; starred: boolean;
   tracked: boolean;
 };
+
+export type CandidateContext = { years: number | null; targetRoles: string[] };
+
+const REC_TONES = {
+  strong: "bg-success/10 text-success",
+  good: "bg-primary/10 text-primary",
+  stretch: "bg-warning/10 text-amber-700 dark:text-amber-400",
+  skip: "bg-destructive/10 text-destructive",
+} as const;
+
+function Stars({ n }: { n: number }) {
+  return (
+    <span className="flex gap-0.5" aria-label={`${n} of 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star key={i} className={cn("h-3.5 w-3.5", i <= n ? "fill-warning text-warning" : "text-border")} />
+      ))}
+    </span>
+  );
+}
 
 type Filter = "all" | "strong" | "remote" | "starred";
 
@@ -27,7 +48,7 @@ function age(job: FeedJob): string {
   return `${Math.floor(days / 30)}mo ago`;
 }
 
-export function JobFeed({ jobs }: { jobs: FeedJob[] }) {
+export function JobFeed({ jobs, candidate }: { jobs: FeedJob[]; candidate: CandidateContext }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
@@ -119,8 +140,36 @@ export function JobFeed({ jobs }: { jobs: FeedJob[] }) {
                 </div>
               </div>
 
-              {expanded && (
+              {expanded && (() => {
+                const explanation = explainMatch({
+                  title: j.title,
+                  matchScore: j.match_score,
+                  requiredSkills: j.required_skills ?? [],
+                  matchedSkills: j.matched_skills ?? [],
+                  missingSkills: j.missing_skills ?? [],
+                  yearsRequired: j.years_required,
+                  candidateYears: candidate.years,
+                  targetRoles: candidate.targetRoles,
+                });
+                return (
                 <div className="space-y-4 border-t border-border bg-muted/30 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", REC_TONES[explanation.recommendation.tone])}>
+                      {explanation.recommendation.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">{explanation.recommendation.action}</span>
+                  </div>
+                  <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                    {explanation.dimensions.map((d) => (
+                      <div key={d.key} className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium">{d.label}</p>
+                          <p className="truncate text-[11px] text-muted-foreground">{d.detail}</p>
+                        </div>
+                        <Stars n={d.stars} />
+                      </div>
+                    ))}
+                  </div>
                   {j.strategy && <p className="text-sm leading-relaxed">{j.strategy}</p>}
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
@@ -148,7 +197,8 @@ export function JobFeed({ jobs }: { jobs: FeedJob[] }) {
                     </code>
                   </div>
                 </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}

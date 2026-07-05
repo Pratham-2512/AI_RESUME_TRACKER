@@ -71,6 +71,9 @@ export function scoreMatch(opts: {
   jobText: string;
   candidateSkills: string[];
   candidateYears?: number | null;
+  /** Job title + target roles enable a role-fit signal (used by the feed). */
+  title?: string;
+  targetRoles?: string[];
 }): MatchResult {
   const requirements = extractRequirements(opts.jobText);
   const have = new Set(opts.candidateSkills.map((s) => s.toLowerCase().trim()));
@@ -82,11 +85,29 @@ export function scoreMatch(opts: {
   // Base score = proportion of required skills the candidate has (skill coverage).
   let score = req.length ? Math.round((matchedSkills.length / req.length) * 100) : 50;
 
+  // Low-evidence cap: full coverage of a 1–2 skill JD is weak evidence, not a
+  // 100% match (a copywriter JD mentioning only Excel must not outrank real
+  // engineering matches).
+  if (req.length === 1) score = Math.min(score, 55);
+  else if (req.length === 2) score = Math.min(score, 70);
+
   // Experience adjustment.
   if (requirements.yearsRequired != null && opts.candidateYears != null) {
     if (opts.candidateYears >= requirements.yearsRequired) score = Math.min(100, score + 5);
     else if (opts.candidateYears < requirements.yearsRequired - 2) score = Math.max(0, score - 15);
     else score = Math.max(0, score - 5);
+  }
+
+  // Role-fit adjustment: reward titles inside the candidate's target roles,
+  // penalize titles with zero overlap.
+  if (opts.title && opts.targetRoles?.length) {
+    const targetWords = new Set(
+      opts.targetRoles.flatMap((r) => r.toLowerCase().split(/\s+/)).filter((w) => w.length > 2),
+    );
+    const overlap = opts.title.toLowerCase().split(/[^a-z+#.]+/).filter((w) => targetWords.has(w)).length;
+    if (overlap >= 2) score = Math.min(100, score + 10);
+    else if (overlap === 1) score = Math.min(100, score + 5);
+    else score = Math.max(0, score - 20);
   }
 
   const interviewProbability = probability(score);
