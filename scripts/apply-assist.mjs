@@ -81,6 +81,23 @@ async function downloadResume(db) {
   return { file, label: resume.label ?? path.basename(resume.storage_path) };
 }
 
+/** Snapshot the primary resume text as a resume_version (reused if unchanged),
+ * so this application records exactly what was sent. */
+async function snapshotResume(db) {
+  const { data: resume } = await db.from("resumes")
+    .select("id,target,parsed_text").eq("is_primary", true).maybeSingle();
+  if (!resume?.parsed_text) return null;
+  const { data: last } = await db.from("resume_versions")
+    .select("id,version_no,content_md").eq("resume_id", resume.id)
+    .order("version_no", { ascending: false }).limit(1).maybeSingle();
+  if (last?.content_md === resume.parsed_text) return last.id;
+  const { data: created } = await db.from("resume_versions").insert({
+    resume_id: resume.id, version_no: (last?.version_no ?? 0) + 1,
+    target: resume.target ?? "generic", content_md: resume.parsed_text, created_by_ai: false,
+  }).select("id").single();
+  return created?.id ?? null;
+}
+
 async function latestCoverLetter(db, opportunityId) {
   const { data } = await db.from("generated_documents")
     .select("content").eq("opportunity_id", opportunityId).eq("type", "cover_letter")
@@ -195,14 +212,19 @@ async function main() {
 
   if (answer === "done") {
     const today = new Date().toISOString().slice(0, 10);
+    const versionId = await snapshotResume(db);
     const { data: existing } = await db.from("applications")
-      .select("id,status").eq("opportunity_id", opp.id).maybeSingle();
+      .select("id,status,resume_version_id").eq("opportunity_id", opp.id).maybeSingle();
     if (existing) {
-      await db.from("applications").update({ status: "applied", applied_at: today }).eq("id", existing.id);
+      await db.from("applications").update({
+        status: "applied", applied_at: today,
+        resume_version_id: existing.resume_version_id ?? versionId,
+      }).eq("id", existing.id);
     } else {
       await db.from("applications").insert({
         opportunity_id: opp.id, job_title: opp.title, company: opp.company,
         status: "applied", applied_at: today, source: "apply-assist",
+        resume_version_id: versionId,
       });
     }
     console.log(`\n✓ Logged as applied (${today}) — visible in the Applications pipeline.`);

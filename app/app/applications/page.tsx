@@ -6,12 +6,18 @@ import { PageHeader, StatCard, SectionCard, MetricBar, InfoBanner } from "@/comp
 export const dynamic = "force-dynamic";
 
 export default async function PipelinePage() {
-  let apps: { id: string; job_title: string | null; company: string | null; status: AppStatus }[] = [];
+  let apps: { id: string; job_title: string | null; company: string | null; status: AppStatus; resume_version_id: string | null }[] = [];
+  let versionNo = new Map<string, number>();
   let dbError: string | null = null;
   try {
     const db = createDb();
-    const { data } = await db.from("applications").select("id,job_title,company,status").order("updated_at", { ascending: false });
+    const { data } = await db.from("applications").select("id,job_title,company,status,resume_version_id").order("updated_at", { ascending: false });
     apps = (data ?? []) as typeof apps;
+    const versionIds = [...new Set(apps.map((a) => a.resume_version_id).filter(Boolean))] as string[];
+    if (versionIds.length) {
+      const { data: versions } = await db.from("resume_versions").select("id,version_no").in("id", versionIds);
+      versionNo = new Map((versions ?? []).map((v) => [v.id, v.version_no]));
+    }
   } catch (e) { dbError = e instanceof Error ? e.message : "Database not reachable"; }
 
   const a: PipelineAnalytics = computePipelineAnalytics(apps);
@@ -59,6 +65,9 @@ export default async function PipelinePage() {
               {apps.filter((x) => x.status === s.key).slice(0, 6).map((x) => (
                 <div key={x.id} className="truncate rounded-lg bg-muted/60 px-2.5 py-1.5 text-xs">
                   {x.job_title ?? "Job"}{x.company ? ` · ${x.company}` : ""}
+                  {x.resume_version_id && versionNo.has(x.resume_version_id) && (
+                    <span className="ml-1 text-[10px] text-muted-foreground">· résumé v{versionNo.get(x.resume_version_id)}</span>
+                  )}
                 </div>
               ))}
             </div>

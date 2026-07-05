@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createDb } from "@/lib/supabase/db";
 import { ingestAllSources, type IngestSummary } from "@/lib/jobs/ingest";
+import { snapshotResumeVersion } from "@/lib/resume/versioning";
 import type { JobSourceKind } from "@/lib/supabase/database.types";
 
 const sourceSchema = z.object({
@@ -70,9 +71,10 @@ export async function trackOpportunity(id: string) {
     .select("id").eq("opportunity_id", id).maybeSingle();
   if (existing) return existing.id;
 
+  const resumeVersionId = await snapshotResumeVersion();
   const { data: app, error } = await db.from("applications").insert({
     opportunity_id: opp.id, job_title: opp.title, company: opp.company,
-    status: "saved", source: opp.source,
+    status: "saved", source: opp.source, resume_version_id: resumeVersionId,
   }).select("id").single();
   if (error) throw new Error(error.message);
   revalidatePath("/app/jobs");

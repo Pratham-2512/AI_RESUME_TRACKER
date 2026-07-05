@@ -9,6 +9,7 @@ import {
   analyzeCompatibility, honestTailor, optimizeWithConfirmedSkills, generateLearningRoadmap,
   type CompatibilityAnalysis, type TailoringResult, type LearningRoadmap, type SkillConfirmation,
 } from "@/lib/domain/tailorEngine";
+import { snapshotResumeVersion } from "@/lib/resume/versioning";
 
 const coverSchema = z.object({
   resumeId: z.string().uuid(),
@@ -131,6 +132,7 @@ export async function runOptimizedTailor(input: unknown): Promise<TailoringOutpu
 export async function trackApplication(input: unknown): Promise<string> {
   const { jobTitle, company, opportunityId, notes } = trackSchema.parse(input);
   const db = createDb();
+  const resumeVersionId = await snapshotResumeVersion();
   const { data, error } = await db.from("applications").insert({
     job_title: jobTitle,
     company: company || null,
@@ -139,6 +141,7 @@ export async function trackApplication(input: unknown): Promise<string> {
     applied_at: new Date().toISOString(),
     notes: notes || null,
     source: "application_studio",
+    resume_version_id: resumeVersionId,
   }).select("id").single();
   if (error) throw new Error(error.message);
   revalidatePath("/app/applications");
