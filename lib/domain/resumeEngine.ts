@@ -20,6 +20,9 @@ const STRONG_VERBS = new Set([
   "produced","programmed","reduced","refactored","released","resolved","restructured",
   "revamped","saved","scaled","shaped","shipped","simplified","spearheaded",
   "standardized","streamlined","transformed","upgraded","validated","wrote",
+  "audited","authored","containerized","debugged","diagnosed","documented",
+  "fine-tuned","finetuned","instrumented","maintained","monitored","presented",
+  "prototyped","published","researched","reviewed","secured","tested","trained",
 ]);
 
 const WEAK_OPENERS = [
@@ -29,7 +32,7 @@ const WEAK_OPENERS = [
 ];
 
 // Numbers, %, $, multipliers, common units → evidence of quantified impact.
-const QUANT_RE = /(\d+\s*%|\$\s*\d|\b\d+\s*(x|times|users|customers|clients|hours|days|weeks|months|requests|queries|ms|k|m|mn|million|billion|gb|tb)\b|\b\d{2,}\b|\b\d+\+)/i;
+const QUANT_RE = /(\d+\s*%|\$\s*\d|\b\d+\s*(x|times|users|customers|clients|hours|days|weeks|months|requests|queries|ms|k|m|mn|million|billion|gb|tb)\b|\b\d{2,}\b|\b\d+\+|\b\d+\s+(?:\w+\s+)?(modules?|stores?|teams?|projects?|dashboards?|workflows?|systems?|apps?|applications?|services?|pipelines?|reports?|sources?|platforms?|products?|features?|departments?|vendors?|integrations?)\b)/i;
 
 // ---------------------------------------------------------------------------
 // FIX 1 — Broad bullet character set (covers Font Awesome glyphs in PDFs)
@@ -72,29 +75,98 @@ function isNoiseLine(line: string): boolean {
   return false;
 }
 
-function isHeader(line: string): boolean {
-  return isNoiseLine(line);
+// Job/entry headers: anything carrying a date range ("Dec 2025 – Present",
+// "2021 – 2023"), or short pipe/dot-separated label rows with no action verb
+// ("Enterprise Software • Full-Stack Development • AI Integration").
+const DATE_RANGE_RE =
+  /\b(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?,?\s+)?\d{4}\s*[-–—]\s*(?:present|current|now|(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?,?\s+)?\d{4})\b/i;
+
+function isJobHeaderLine(line: string): boolean {
+  if (DATE_RANGE_RE.test(line)) return true;
+  const seps = (line.match(/[•|]/g) ?? []).length;
+  if (seps >= 1 && line.split(/\s+/).length <= 16 && !QUANT_RE.test(line)) {
+    const first = cleanBullet(line).split(/\s+/)[0]?.toLowerCase().replace(/[^a-z]/g, "") ?? "";
+    if (!STRONG_VERBS.has(first)) return true;
+  }
+  return false;
 }
 
 // ---------------------------------------------------------------------------
 // Bullet extraction
 // ---------------------------------------------------------------------------
+/**
+ * PDF extraction wraps long bullets/paragraphs across several physical lines.
+ * Re-join a line into the previous one when the previous line has no terminal
+ * punctuation and the current one reads like a continuation.
+ */
+function mergeWrappedLines(lines: string[]): string[] {
+  const out: string[] = [];
+  for (const line of lines) {
+    const prev = out[out.length - 1];
+    const continues =
+      prev !== undefined &&
+      !BULLET_CHAR_RE.test(line) &&
+      !isNoiseLine(line) && !isNoiseLine(prev) &&
+      !isJobHeaderLine(line) && !isJobHeaderLine(prev) &&
+      !/[.!?;:]$/.test(prev) &&
+      (/^[a-z(]/.test(line) || /[,&]$/.test(prev) ||
+        /\b(and|or|of|for|with|the|a|an|in|to|on|at|by|from|across|including|via|per|plus)$/i.test(prev));
+    if (continues) out[out.length - 1] = `${prev} ${line}`;
+    else out.push(line);
+  }
+  return out;
+}
+
+const SECTION_HEADER_RE =
+  /^(professional\s+|work\s+|technical\s+)?(experience|employment|education|skills|projects|summary|profile|objective|certifications|achievements|awards|publications)\b[\s:]*$/i;
+
+// Sections whose lines are lists/labels, not accomplishment bullets — never
+// scold a skills list or a summary paragraph for lacking an action verb.
+const SKIP_SECTIONS = new Set([
+  "summary", "profile", "objective", "skills", "education",
+  "certifications", "achievements", "awards", "publications",
+]);
+
 function extractBullets(text: string): string[] {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rawLines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = mergeWrappedLines(rawLines);
+
+  // Walk sections: collect content only from experience/projects (or any
+  // unlabeled section introduced by a job header). Preamble (name, contact,
+  // headline) and list-style sections are excluded.
+  let section = "preamble";
+  const content: string[] = [];
+  for (const l of lines) {
+    const m = SECTION_HEADER_RE.exec(l);
+    if (m) { section = m[2].toLowerCase(); continue; }
+    if (isJobHeaderLine(l)) {
+      if (section === "preamble" || SKIP_SECTIONS.has(section)) section = "experience";
+      continue;
+    }
+    if (section !== "preamble" && !SKIP_SECTIONS.has(section)) content.push(l);
+  }
+  // No usable sections detected (headerless resume) — analyze everything
+  // after the first bullet-marked line instead.
+  if (content.length === 0) {
+    const firstBullet = lines.findIndex((l) => BULLET_CHAR_RE.test(l));
+    content.push(...lines.slice(firstBullet < 0 ? 0 : firstBullet));
+  }
 
   // Primary: lines that start with a recognized bullet character
-  const marked = lines
+  const marked = content
     .filter((l) => BULLET_CHAR_RE.test(l))
     .map((l) => l.replace(BULLET_CHAR_RE, "").replace(/^\s*/, "").trim())
     .map(cleanBullet)
-    .filter((l) => l.length > 0 && !isNoiseLine(l));
+    .filter((l) => l.length > 0 && !isNoiseLine(l) && !isJobHeaderLine(l));
 
   if (marked.length >= 2) return marked;
 
-  // Fallback: sentence-like lines (>= 6 words, not noise)
-  return lines
+  // Fallback: sentence-like lines (>= 6 words, not noise, not headers).
+  // Long merged prose blocks are split into sentences first.
+  return content
+    .flatMap((l) => (l.split(/\s+/).length > 45 ? l.split(/(?<=[.!?])\s+/) : [l]))
     .filter((l) => {
-      if (isNoiseLine(l)) return false;
+      if (isNoiseLine(l) || isJobHeaderLine(l)) return false;
       const words = l.split(/\s+/);
       return words.length >= 6 && words.length <= 60;
     })
