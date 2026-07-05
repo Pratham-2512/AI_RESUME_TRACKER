@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Trash2, AlertTriangle } from "lucide-react";
 import { deleteResume, getResumeApplicationCount } from "@/actions/resumes";
@@ -68,7 +69,9 @@ export function DeleteResumeButton({ id, label }: Props) {
         <Trash2 className="h-4 w-4" />
       </button>
 
-      {modalOpen && (
+      {/* Portal to <body>: a transformed/filtered ancestor (e.g. entry
+          animations) would otherwise cage this fixed overlay inside the card. */}
+      {modalOpen && createPortal(
         <div
           role="dialog"
           aria-modal
@@ -144,7 +147,8 @@ export function DeleteResumeButton({ id, label }: Props) {
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
