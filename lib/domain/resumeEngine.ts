@@ -20,9 +20,11 @@ const STRONG_VERBS = new Set([
   "produced","programmed","reduced","refactored","released","resolved","restructured",
   "revamped","saved","scaled","shaped","shipped","simplified","spearheaded",
   "standardized","streamlined","transformed","upgraded","validated","wrote",
-  "audited","authored","containerized","debugged","diagnosed","documented",
-  "fine-tuned","finetuned","instrumented","maintained","monitored","presented",
-  "prototyped","published","researched","reviewed","secured","tested","trained",
+  "audited","authored","configured","conducted","containerized","debugged",
+  "diagnosed","documented","fine-tuned","finetuned","fixed","instrumented",
+  "maintained","monitored","presented","prototyped","published","rebuilt",
+  "redesigned","refined","researched","reviewed","secured","solved","tested",
+  "trained","unified",
 ]);
 
 const WEAK_OPENERS = [
@@ -140,7 +142,10 @@ function extractBullets(text: string): string[] {
     const m = SECTION_HEADER_RE.exec(l);
     if (m) { section = m[2].toLowerCase(); continue; }
     if (isJobHeaderLine(l)) {
-      if (section === "preamble" || SKIP_SECTIONS.has(section)) section = "experience";
+      // A dated entry only *starts* experience from the preamble/summary.
+      // Education/certification entries carry date ranges too — those must
+      // not flip the section back to experience.
+      if (section === "preamble" || section === "summary" || section === "profile") section = "experience";
       continue;
     }
     if (section !== "preamble" && !SKIP_SECTIONS.has(section)) content.push(l);
