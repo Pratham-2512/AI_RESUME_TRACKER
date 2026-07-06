@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, ClipboardList, Briefcase, Sparkles, Menu, X } from "lucide-react";
+import { FileText, ClipboardList, Briefcase, MessagesSquare, BarChart3, Sparkles, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV: readonly [string, string, React.ComponentType<{ className?: string }>][] = [
   ["/app/resumes", "Résumés", FileText],
   ["/app/jobs", "Jobs", Briefcase],
   ["/app/applications", "Applications", ClipboardList],
+  ["/app/interview", "Interview", MessagesSquare],
+  ["/app/analytics", "Analytics", BarChart3],
 ];
 
 function Brand() {
